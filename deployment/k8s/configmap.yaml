@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: arguslens-config
+  namespace: arguslens
+data:
+  EDGE_NODE: "false"
+  FEDERATED_ENABLED: "true"
+  AUTONOMY_LEVEL: "autonomous"
+  FEDERATED_MIN_PARTICIPANTS: "2"
+  FEDERATED_AGGREGATION_METHOD: "fedavg"
+  PRIVACY_EPSILON: "1.0"
+  PRIVACY_DELTA: "1e-5"
+  CLOUD_SYNC_INTERVAL_S: "30"
+  HEALTH_PROBE_INTERVAL_S: "30"
+  MODEL_PRECISION: "fp16"
+  LOG_LEVEL: "INFO"

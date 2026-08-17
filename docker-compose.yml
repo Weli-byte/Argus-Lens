@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/arguslens
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - JAEGER_ENABLED=true
+      - JAEGER_COLLECTOR_ENDPOINT=http://jaeger:14268/api/traces
+      - JAEGER_SERVICE_NAME=arguslens-api
+    depends_on:
+      - postgres
+      - redis
+      - jaeger
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --workers 1
+
+  worker:
+    build: .
+    volumes:
+      - .:/app
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/arguslens
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - JAEGER_ENABLED=true
+      - JAEGER_COLLECTOR_ENDPOINT=http://jaeger:14268/api/traces
+      - JAEGER_SERVICE_NAME=arguslens-worker
+    depends_on:
+      - postgres
+      - redis
+      - api
+    command: celery -A tasks.celery_app.celery_app worker --loglevel=info
+
+  postgres:
+    image: pgvector/pgvector:pg15
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=arguslens
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --save 60 1 --loglevel warning
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    ports:
+      - "5775:5775/udp"    # Zipkin compact thrift
+      - "6831:6831/udp"    # Thrift compact
+      - "6832:6832/udp"    # Thrift binary
+      - "5778:5778"        # HTTP configs
+      - "16686:16686"      # Jaeger UI
+      - "14268:14268"      # HTTP collector
+      - "14250:14250"      # gRPC collector
+      - "9411:9411"        # Zipkin HTTP
+    environment:
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+      - SPAN_STORAGE_TYPE=memory
+
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"
+
+  grafana:
+    image: grafana/grafana:10.4.3
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=arguslens
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana_dashboard.json:/etc/grafana/provisioning/dashboards/arguslens.json:ro
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:

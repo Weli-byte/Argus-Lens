@@ -1,0 +1,52 @@
+version: "3.9"
+
+# Lightweight single-node edge deployment.
+# Runs without GPU by default; set DEVICE=cuda to enable.
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    command: redis-server --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  edge:
+    image: arguslens/edge:latest
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      EDGE_NODE: "true"
+      NODE_ID: "${NODE_ID:-edge-node}"
+      CLOUD_SYNC_URL: "${CLOUD_SYNC_URL:-}"
+      INFERENCE_STRATEGY: "${INFERENCE_STRATEGY:-edge_first}"
+      AUTONOMY_LEVEL: "${AUTONOMY_LEVEL:-autonomous}"
+      REDIS_URL: "redis://redis:6379/0"
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+    ports:
+      - "${EDGE_PORT:-8000}:8000"
+    volumes:
+      - ./models:/app/models:ro
+      - edge_data:/var/lib/arguslens
+    deploy:
+      resources:
+        limits:
+          cpus: "${CPU_LIMIT:-2.0}"
+          memory: "${MEM_LIMIT:-4G}"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  redis_data:
+  edge_data:

@@ -1,0 +1,114 @@
+version: "3.9"
+
+# Multi-node ArgusLens deployment with federated learning coordinator.
+# Simulates 2 edge nodes + 1 cloud coordinator for local testing.
+
+x-edge-common: &edge-common
+  image: arguslens/edge:latest
+  restart: unless-stopped
+  depends_on:
+    redis:
+      condition: service_healthy
+    postgres:
+      condition: service_healthy
+  environment: &edge-env
+    REDIS_URL: "redis://redis:6379/0"
+    DATABASE_URL: "postgresql+asyncpg://arguslens:arguslens@postgres:5432/arguslens"
+    AUTONOMY_LEVEL: "${AUTONOMY_LEVEL:-autonomous}"
+    FEDERATED_ENABLED: "true"
+    CLOUD_SYNC_URL: "http://coordinator:8000"
+    LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+  volumes:
+    - ./models:/app/models:ro
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: arguslens
+      POSTGRES_USER: arguslens
+      POSTGRES_PASSWORD: arguslens
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U arguslens"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    command: redis-server --save 60 1
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  coordinator:
+    <<: *edge-common
+    environment:
+      <<: *edge-env
+      EDGE_NODE: "false"
+      NODE_ID: "coordinator"
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  edge-node-1:
+    <<: *edge-common
+    environment:
+      <<: *edge-env
+      EDGE_NODE: "true"
+      NODE_ID: "edge-node-1"
+      INFERENCE_STRATEGY: "edge_first"
+    ports:
+      - "8001:8000"
+
+  edge-node-2:
+    <<: *edge-common
+    environment:
+      <<: *edge-env
+      EDGE_NODE: "true"
+      NODE_ID: "edge-node-2"
+      INFERENCE_STRATEGY: "edge_first"
+    ports:
+      - "8002:8000"
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    volumes:
+      - ./deployment/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prom_data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_PASSWORD:-admin}"
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+volumes:
+  pg_data:
+  redis_data:
+  prom_data:
+  grafana_data:

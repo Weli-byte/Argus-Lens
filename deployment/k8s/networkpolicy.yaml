@@ -1,0 +1,52 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: arguslens-api-netpol
+  namespace: arguslens
+spec:
+  podSelector:
+    matchLabels:
+      app: arguslens-api
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 8000
+  egress:
+    - ports:
+        - protocol: TCP
+          port: 5432    # PostgreSQL
+        - protocol: TCP
+          port: 6379    # Redis
+        - protocol: TCP
+          port: 443     # HTTPS external
+        - protocol: UDP
+          port: 53      # DNS
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: arguslens-worker-netpol
+  namespace: arguslens
+spec:
+  podSelector:
+    matchLabels:
+      app: arguslens-worker
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: arguslens-api
+  egress:
+    - ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 6379
+        - protocol: UDP
+          port: 53

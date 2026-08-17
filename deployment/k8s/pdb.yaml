@@ -1,0 +1,21 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: arguslens-api-pdb
+  namespace: arguslens
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: arguslens-api
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: arguslens-worker-pdb
+  namespace: arguslens
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: arguslens-worker
