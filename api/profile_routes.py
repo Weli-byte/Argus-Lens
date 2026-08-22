@@ -1,20 +1,95 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.session import get_db
 from models.domain import HealthProfile, User
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import Any, List, Optional
 import os
 import io
+import re
 import pypdf
 import datetime
 import json
 import logging
 from openai import AsyncOpenAI
 
+from security.jwt_handler import SecurityHandler
+
 router = APIRouter(prefix="/profile", tags=["profile"])
 logger = logging.getLogger(__name__)
+
+_security = HTTPBearer(auto_error=False)
+
+# E-Nabiz yuklemesi icin ust sinir. Sinirsiz `await file.read()` cagrisi
+# tum dosyayi bellege aliyordu; tek bir buyuk istek sunucuyu dusurebilirdi.
+_MAX_UPLOAD_BYTES = 10 * 1024 * 1024          # 10 MB
+_UPLOAD_CHUNK = 64 * 1024                      # 64 KB
+
+
+def require_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_security),
+) -> str:
+    """Dogrulanmis kullanicinin adini dondurur, yoksa 401.
+
+    Bu rotalar saglik verisi okuyup yaziyor. Kimlik zorunlu olmali ve her
+    sorgu O kullaniciya kapsamlanmali; aksi hâlde bir kullanici digerinin
+    kaydini gorebilir.
+    """
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Kimlik dogrulamasi gerekli",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    try:
+        payload = SecurityHandler.verify_token(credentials)
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Gecersiz veya suresi dolmus token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    username = (payload or {}).get("sub")
+    if not username:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token kullanici bilgisi tasimiyor",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return str(username)
+
+
+async def _profile_for(db: AsyncSession, username: str) -> tuple[Any, Any]:
+    """(kullanici, saglik_profili) ciftini dondurur — profil yoksa None.
+
+    Onceden `select(HealthProfile).first()` cagriliyordu: kim sorarsa sorsun
+    TABLODAKI ILK kayit donuyordu. Artik sorgu kullaniciya baglandi.
+    """
+    user_result = await db.execute(select(User).where(User.username == username))
+    user = user_result.scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Kullanici bulunamadi")
+
+    prof_result = await db.execute(
+        select(HealthProfile).where(HealthProfile.user_id == user.id)
+    )
+    return user, prof_result.scalars().first()
+
+
+def _fallback_path(username: str) -> str:
+    """Kullaniciya ozel JSON yedek dosyasi.
+
+    Tek paylasilan profile.json da ayni sizinti sorunuydu: veritabani
+    dustugunde herkes ayni kaydi goruyordu. Kullanici adi dosya adina
+    girdigi icin yol gezinmesine karsi temizleniyor.
+    """
+    safe = re.sub(r"[^A-Za-z0-9_.-]", "_", username)[:64] or "anonim"
+    return os.path.join(os.getcwd(), "chats", f"profile_{safe}.json")
 
 class ProfileUpdate(BaseModel):
     age: int

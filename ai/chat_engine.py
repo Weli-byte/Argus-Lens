@@ -4,6 +4,7 @@ import logging
 import datetime
 import httpx
 import re
+import random
 from typing import Dict, Any, List
 from openai import AsyncOpenAI
 
@@ -27,6 +28,17 @@ class AIChatEngine:
         self.chats_dir = os.path.abspath(os.path.join(os.getcwd(), "chats"))
         os.makedirs(self.chats_dir, exist_ok=True)
         logger.info("Chat histories will persist at: %s", self.chats_dir)
+
+        # Load patient profile for personalised responses
+        self.patient_profile: Dict[str, Any] | None = None
+        profile_path = os.path.join(self.chats_dir, "profile.json")
+        if os.path.exists(profile_path):
+            try:
+                with open(profile_path, "r", encoding="utf-8") as f:
+                    self.patient_profile = json.load(f)
+                logger.info("Patient profile loaded for personalised AI context.")
+            except Exception as e:
+                logger.error("Failed to load patient profile: %s", e)
 
     async def crawl_web_page(self, url: str, max_chars: int = 3000) -> str:
         """
@@ -103,8 +115,27 @@ class AIChatEngine:
     ) -> str:
         """
         Builds medical RAG, Search results and Deep Thinking constraints inside the system prompt.
+        Includes patient profile, temporal context, and response variety directives.
         """
+        # Dynamic date/time context
+        now = datetime.datetime.now()
+        time_str = now.strftime("%d %B %Y, %A %H:%M")
+        
+        # Response variety seed — forces the model to vary its approach each time
+        response_styles = [
+            "Bu yanıtta doğrudan ve samimi bir dil kullan, başlıklar veya numaralı listeler yerine akıcı paragraflar tercih et.",
+            "Bu yanıtta bilgiyi kısa ve öz madde işaretleriyle sun, gereksiz tekrarlardan kaçın, doğrudan konuya gir.",
+            "Bu yanıtta önce bir özet cümle ver, ardından detayları açıkla. Sohbet tarzında, hastayı adıyla hitap edercesine yaz.",
+            "Bu yanıtta klinik bir vaka analizi formatı kullan: Bulgular → Değerlendirme → Öneri şeklinde yapılandır.",
+            "Bu yanıtta hastanın sorusunu empatiyle karşıla, günlük konuşma diliyle yanıtla, teknik terimleri parantez içinde açıkla.",
+            "Bu yanıtta bilgiyi karşılaştırmalı olarak sun (normal vs. mevcut değerler), varsa risk faktörlerini vurgula.",
+            "Bu yanıtta önce en kritik bilgiyi ver, sonra detaylara in. Kısa cümleler ve net ifadeler kullan.",
+        ]
+        style_directive = random.choice(response_styles)
+        
         base_prompt = (
+            f"[SİSTEM TARİH/SAAT: {time_str}]\n\n"
+            
             "Sen ArgusLens ekosisteminde çalışan, dünya çapında bir tıp profesörü, uzman klinik hekim "
             "ve şefkatli bir sağlık danışmanısın. Kullanıcılarla kurduğun diyaloglarda tıpkı saygın bir doktor "
             "gibi profesyonel, empatik, anlaşılır ve güven verici bir dil kullanmalısın.\n\n"
@@ -116,6 +147,15 @@ class AIChatEngine:
             "ChatGPT/Gemini gibi tam kapsamlı ve son derece akıllı bir yapay zeka asistanı olarak hizmet vermek.\n"
             "3. Hastanın vital bulgularında kritik sapmalar (örneğin yüksek NEWS2 skoru veya tehlikeli anomali indeksleri) "
             "gözlemlediğinde, panik yaratmadan ama kararlı bir şekilde acil servise veya en yakın hekime yönlendirmek.\n\n"
+            
+            "YANIT ÇEŞİTLİLİĞİ VE KİŞİSELLEŞTİRME (KRİTİK):\n"
+            f"- {style_directive}\n"
+            "- Her yanıtında farklı bir açıdan yaklaş. Aynı soruya bile farklı örnekler, benzetmeler ve açıklamalar kullan.\n"
+            "- Önceki sohbet geçmişinde verdiğin yanıtların formatını ve yapısını tekrarlama. Her seferinde taze ve "
+            "özgün bir yaklaşım benimse.\n"
+            "- Hastanın sağlık geçmişini, ilaçlarını ve önceki bulgularını MUTLAKA göz önünde bulundur ve yanıtına entegre et.\n"
+            "- Klişe kapanış cümleleri kullanma (örn. her seferinde 'sağlık profesyoneline danışın' diye bitirme). "
+            "Bunun yerine bağlama uygun, spesifik ve değişken kapanışlar yaz.\n\n"
             
             "GÖRSEL VE FOTOĞRAF ANALİZİ (MULTIMODAL):\n"
             "- Kullanıcı bir görsel veya fotoğraf yüklediğinde (örneğin saç dökülmesi resmi, cilt döküntüsü, yara, tahlil sonucu veya bir kişi resmi vb.), "
@@ -143,6 +183,51 @@ class AIChatEngine:
             "- Teşhislerini 'kesin tanı' yerine 'olası klinik ihtimaller' şeklinde sun ve fiziki muayenenin yerini "
             "tutmayacağını hatırlat.\n\n"
         )
+
+        # Inject patient profile context
+        if self.patient_profile:
+            p = self.patient_profile
+            chronic = ", ".join(p.get("chronic_diseases", [])) or "Bildirilmemiş"
+            allergies = ", ".join(p.get("allergies", [])) or "Bildirilmemiş"
+            meds = ", ".join(p.get("active_medications", [])) or "Bildirilmemiş"
+            
+            base_prompt += (
+                f"\n[HASTA PROFİLİ — KİŞİSEL SAĞLIK DOSYASI]\n"
+                f"- Yaş: {p.get('age', 'Bilinmiyor')}\n"
+                f"- Cinsiyet: {p.get('gender', 'Bilinmiyor')}\n"
+                f"- Boy/Kilo: {p.get('height', '?')} cm / {p.get('weight', '?')} kg\n"
+                f"- Kan Grubu: {p.get('blood_type', 'Bilinmiyor')}\n"
+                f"- Kronik Hastalıklar: {chronic}\n"
+                f"- Alerjiler: {allergies}\n"
+                f"- Aktif İlaçlar: {meds}\n"
+            )
+            
+            # Lab results
+            lab_results = p.get("lab_results", [])
+            if lab_results:
+                base_prompt += "- Son Tahlil Sonuçları:\n"
+                for lab in lab_results:
+                    base_prompt += f"  • {lab.get('test', '')}: {lab.get('value', '')} ({lab.get('status', '')}) [{lab.get('date', '')}]\n"
+            
+            # Visit history
+            visit_history = p.get("visit_history", [])
+            if visit_history:
+                base_prompt += "- Son Poliklinik Ziyaretleri:\n"
+                for visit in visit_history:
+                    base_prompt += f"  • {visit.get('date', '')} — {visit.get('dept', '')} ({visit.get('doctor', '')}): {visit.get('diagnosis', '')}\n"
+            
+            # Prescriptions
+            prescriptions = p.get("prescriptions", [])
+            if prescriptions:
+                base_prompt += "- Aktif Reçeteler:\n"
+                for rx in prescriptions:
+                    meds_list = ", ".join(rx.get("meds", []))
+                    base_prompt += f"  • {rx.get('date', '')} — {rx.get('doctor', '')}: {meds_list}\n"
+            
+            base_prompt += (
+                "\nBu hasta bilgilerini yanıtlarında mutlaka göz önünde bulundur. Örneğin hastanın kronik hastalıklarına, "
+                "kullandığı ilaçlara veya geçmiş tahlil sonuçlarına atıfta bulunarak kişiselleştirilmiş öneriler sun.\n\n"
+            )
 
         if thinking_enabled:
             base_prompt += (
@@ -188,6 +273,7 @@ class AIChatEngine:
 
         return base_prompt
 
+
     def list_sessions(self) -> List[Dict[str, Any]]:
         """
         Lists all persistent chat sessions stored in the chats/ directory.
@@ -195,17 +281,17 @@ class AIChatEngine:
         sessions_list = []
         try:
             for filename in os.listdir(self.chats_dir):
-                if filename.endswith(".json"):
+                if filename.startswith("session-") and filename.endswith(".json"):
                     filepath = os.path.join(self.chats_dir, filename)
                     with open(filepath, "r", encoding="utf-8") as f:
                         data = json.load(f)
                         sessions_list.append({
                             "session_id": data.get("session_id"),
                             "title": data.get("title", "Yeni Sohbet"),
-                            "created_at": data.get("created_at")
+                            "created_at": data.get("created_at", "")
                         })
-            # Sort by created_at descending
-            sessions_list.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+            # Sort by created_at descending (handle None/empty safely)
+            sessions_list.sort(key=lambda x: x.get("created_at") or "", reverse=True)
         except Exception as e:
             logger.error("Failed to list persistent chat sessions: %s", e)
         return sessions_list
@@ -342,11 +428,22 @@ class AIChatEngine:
             user_content = user_message
 
         # 5. Construct messages payload for OpenAI API
+        # Strip base64 image data from history to save context window
         messages = [{"role": "system", "content": system_prompt}]
         for msg in history:
+            content = msg["content"]
+            if isinstance(content, list):
+                # Multi-part message (text + image) — keep text, replace image with placeholder
+                cleaned_parts = []
+                for part in content:
+                    if part.get("type") == "image_url":
+                        cleaned_parts.append({"type": "text", "text": "[Kullanıcı bir görsel yükledi]"})
+                    else:
+                        cleaned_parts.append(part)
+                content = cleaned_parts
             messages.append({
                 "role": msg["role"],
-                "content": msg["content"]
+                "content": content
             })
             
         messages.append({"role": "user", "content": user_content})
@@ -370,8 +467,10 @@ class AIChatEngine:
             completion = await self.client.chat.completions.create(
                 model="gpt-4o",
                 messages=messages,
-                temperature=0.7,
-                max_tokens=1200
+                temperature=0.8,
+                max_tokens=2500,
+                presence_penalty=0.4,
+                frequency_penalty=0.3
             )
             reply = completion.choices[0].message.content or ""
             
