@@ -20,7 +20,7 @@ import {
   Move,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import ParticleField from "@/components/ui/ParticleField";
+import DetectDropStage from "@/components/vision/DetectDropStage";
 import { config } from "@/lib/config";
 import { getAccessToken } from "@/lib/api-client";
 import { translateLabel } from "@/lib/object-translations";
@@ -114,6 +114,7 @@ interface Detection {
 // Utilities
 // ---------------------------------------------------------------------------
 
+import { useT } from "@/lib/i18n";
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -245,6 +246,7 @@ function Minimap({
 }: {
   zoom: number; panX: number; panY: number; maxPanX: number; maxPanY: number;
 }) {
+  const t = useT();
   if (zoom <= 1) return null;
   const vpW = 80 / zoom;
   const vpH = 60 / zoom;
@@ -259,7 +261,7 @@ function Minimap({
     <div
       className="absolute bottom-10 right-3 rounded border border-slate-600/60 bg-black/70 overflow-hidden"
       style={{ width: 80, height: 60 }}
-      title="Görüntü konumu"
+      title={t("Görüntü konumu")}
     >
       <div className="absolute inset-0 border border-slate-700/40" />
       <div
@@ -278,6 +280,7 @@ function Minimap({
 // ---------------------------------------------------------------------------
 
 export default function DetectionPage() {
+  const t = useT();
   // ── Search ────────────────────────────────────────────────────────────────
   const [searchInput,  setSearchInput]  = useState("");
   const [activePrompt, setActivePrompt] = useState("");
@@ -693,13 +696,13 @@ export default function DetectionPage() {
       <div className="shrink-0">
         <p className="text-[11px] text-slate-500 tracking-[0.25em] uppercase mb-1">
           ArgusLens <span className="text-slate-700">/</span>{" "}
-          <span className="text-cyan-400">Nesne Tespiti</span>
+          <span className="text-[var(--ink-title)]">{t("Nesne Tespiti")}</span>
         </p>
         <h1 className="text-3xl leading-none font-black tracking-tighter uppercase">
-          <span className="text-white">NESNE</span>{" "}
-          <span className="text-cyan-400 drop-shadow-[0_0_24px_rgba(0,212,255,0.4)]">TESPİTİ</span>
+          <span className="text-white">{t("NESNE")}</span>{" "}
+          <span className="t-counter">{t("tespiti")}</span>
         </h1>
-        <div className="w-16 h-0.5 bg-gradient-to-r from-cyan-400 to-transparent rounded-full mt-2" />
+        <div className="mt-2 h-px w-16 bg-[var(--accent-status)]" />
       </div>
 
       {/* ================================================================== */}
@@ -708,14 +711,14 @@ export default function DetectionPage() {
       <div className="shrink-0 space-y-2">
         {/* Main row — premium search bar */}
         <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-cyan-400 pointer-events-none" />
+          <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-[var(--ink-faint)]" />
           <input
             type="text"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={handleSearchKey}
-            placeholder="Nesne adı yazın... (örn: araba, insan, bina)"
-            className="w-full h-14 pl-12 pr-44 rounded-[14px] bg-[#0D1117] border-2 border-[rgba(0,212,255,0.2)] text-base text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-400 focus:shadow-[0_0_20px_rgba(0,212,255,0.15)] transition-all duration-300"
+            placeholder={t("Nesne adı yazın... (örn: araba, insan, bina)")}
+            className="h-14 w-full rounded-[var(--p-radius-cell)] border border-[var(--edge-hair)] bg-[color-mix(in_oklch,var(--p-graphite-990)_62%,transparent)] pl-11 pr-44 text-[var(--p-text-sm)] text-[var(--ink-title)] placeholder-[var(--ink-faint)] transition-colors focus:border-[var(--accent-status-edge)] focus:outline-none"
           />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
             {searchInput.trim() && (
@@ -736,11 +739,11 @@ export default function DetectionPage() {
               className={cn(
                 "px-6 h-10 rounded-[10px] text-sm font-bold tracking-wide transition-all duration-300 shrink-0",
                 searchInput.trim()
-                  ? "bg-gradient-to-r from-cyan-500 to-sky-500 text-[#080B0F] hover:shadow-[0_0_16px_rgba(0,212,255,0.4)] hover:brightness-110"
+                  ? "bg-[var(--p-bone-100)] text-[var(--p-graphite-990)] hover:bg-[var(--p-bone-050)]"
                   : "bg-[#111827] text-slate-600 cursor-not-allowed"
               )}
             >
-              TARA
+              {t("TARA")}
             </button>
           </div>
         </div>
@@ -748,20 +751,20 @@ export default function DetectionPage() {
         {/* Hint row */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <p className="text-[11px] font-mono text-slate-600">
-            💡 İpucu: Birden fazla nesne için virgülle ayırın: &apos;araba, insan, ağaç&apos;
+            {t("İpucu — birden fazla nesne için virgülle ayırın: 'araba, insan, ağaç'")}
           </p>
           {translationHint && (
             <p className="text-[11px] font-mono text-slate-500">
               🔍 Gönderilen:{" "}
-              <span className="text-cyan-600">{translationHint}</span>
+              <span className="text-[var(--ink-mute)]">{translationHint}</span>
             </p>
           )}
         </div>
 
         {/* Preset chips */}
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-slate-500 uppercase tracking-wider shrink-0">
-            Hazır:
+          <span className="t-dial shrink-0">
+            {t("Hazır:")}
           </span>
           {PRESETS.map((p) => (
             <button
@@ -770,11 +773,11 @@ export default function DetectionPage() {
               className={cn(
                 "px-3 py-1 rounded-[20px] text-sm border transition-all duration-300",
                 activePrompt === p.query
-                  ? "border-cyan-500 bg-cyan-500/10 text-cyan-400"
-                  : "border-slate-700 text-slate-400 hover:border-cyan-500 hover:text-cyan-400"
+                  ? "border-[var(--accent-status)] bg-[var(--accent-status-wash)] text-[var(--accent-status-soft)]"
+                  : "border-[var(--edge-hair)] text-[var(--ink-mute)] hover:border-[var(--edge-rule)] hover:text-[var(--ink-title)]"
               )}
             >
-              {p.label}
+              {t(p.label)}
             </button>
           ))}
           {promptUsed && (
@@ -799,18 +802,18 @@ export default function DetectionPage() {
           <div className="flex items-center justify-between shrink-0 min-h-[20px]">
             <div className="flex items-center gap-2">
               {(isDetecting || hasResults || modelUsed) && (
-                <Scan className="size-4 text-cyan-400" />
+                <Scan className="size-4" style={{ color: "var(--accent-status)" }} />
               )}
               {isDetecting && (
                 <span className="flex items-center gap-1 text-[10px] font-mono text-amber-400">
                   <span className="size-1.5 rounded-full bg-amber-400 animate-pulse" />
-                  TARANYOR
+                  {t("TARANYOR")}
                 </span>
               )}
               {hasResults && !isDetecting && (
-                <span className="flex items-center gap-1 text-[10px] font-mono text-cyan-400">
-                  <span className="size-1.5 rounded-full bg-cyan-400" />
-                  {detections.length} NESNE
+                <span className="flex items-center gap-1 font-mono text-[var(--p-text-3xs)] text-[var(--measure)]">
+                  <span className="size-1.5 rounded-full bg-[var(--measure)]" />
+                  {detections.length} {t("NESNE")}
                 </span>
               )}
               {modelUsed && !isDetecting && (
@@ -830,7 +833,7 @@ export default function DetectionPage() {
               hasImage
                 ? "border-[rgba(0,212,255,0.2)]"
                 : isDragOver
-                  ? "border-solid border-cyan-400 bg-[rgba(0,212,255,0.05)] scale-[1.01]"
+                  ? "border-solid border-[var(--accent-status)] bg-[var(--accent-status-wash)]"
                   : "border-dashed border-[rgba(0,212,255,0.2)]"
             )}
           >
@@ -844,8 +847,8 @@ export default function DetectionPage() {
                     className={cn(
                       "size-8 rounded-full text-[11px] font-mono font-semibold border transition-all duration-300",
                       zoom === z
-                        ? "bg-cyan-500 text-black border-cyan-500 shadow-[0_0_10px_rgba(0,212,255,0.4)]"
-                        : "bg-black/60 border-slate-700 text-slate-400 hover:border-cyan-500 hover:text-cyan-400"
+                        ? "bg-[var(--accent-status)] text-[var(--p-graphite-990)] border-[var(--accent-status)]"
+                        : "bg-[color-mix(in_oklch,var(--p-graphite-990)_70%,transparent)] border-[var(--edge-hair)] text-[var(--ink-mute)] hover:border-[var(--edge-rule)] hover:text-[var(--ink-title)]"
                     )}
                   >
                     {z}×
@@ -854,35 +857,19 @@ export default function DetectionPage() {
               </div>
             )}
             {!hasImage ? (
-              /* Upload zone */
+              /* Birakma sahnesi: zemin `nesnelerin_uzerinde_oranlarda.mp4`
+                 (repoda 03-detect.mp4). Kullanici daha yuklemeden ciktinin
+                 neye benzeyecegini goruyor. */
               <div
-                className={cn(
-                  "group relative flex flex-col items-center justify-center gap-5 w-full h-full cursor-pointer select-none transition-all duration-300 overflow-hidden",
-                  isDragOver ? "bg-cyan-500/5" : "hover:bg-cyan-500/[0.02]"
-                )}
-                onClick={() => fileInputRef.current?.click()}
+                className="absolute inset-0"
                 onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
                 onDragLeave={() => setIsDragOver(false)}
                 onDrop={handleDrop}
               >
-                <ParticleField density={40} className="absolute inset-0 w-full h-full pointer-events-none" />
-                {/* Corner brackets — glow on hover */}
-                <span className="absolute left-4 top-4 size-8 border-l-2 border-t-2 border-cyan-400 rounded-tl-lg opacity-30 group-hover:opacity-100 transition-opacity duration-300" />
-                <span className="absolute right-4 top-4 size-8 border-r-2 border-t-2 border-cyan-400 rounded-tr-lg opacity-30 group-hover:opacity-100 transition-opacity duration-300" />
-                <span className="absolute left-4 bottom-4 size-8 border-l-2 border-b-2 border-cyan-400 rounded-bl-lg opacity-30 group-hover:opacity-100 transition-opacity duration-300" />
-                <span className="absolute right-4 bottom-4 size-8 border-r-2 border-b-2 border-cyan-400 rounded-br-lg opacity-30 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className={cn(
-                  "relative size-24 rounded-3xl border flex items-center justify-center transition-all duration-300",
-                  isDragOver
-                    ? "bg-cyan-500/15 border-cyan-500/50 shadow-[0_0_24px_rgba(0,212,255,0.2)]"
-                    : "bg-cyan-500/5 border-[rgba(0,212,255,0.2)]"
-                )}>
-                  <Upload className="size-12 text-cyan-400 transition-transform duration-300 group-hover:rotate-[15deg]" strokeWidth={1.5} />
-                </div>
-                <div className="relative text-center space-y-1">
-                  <p className="text-base font-semibold text-slate-200">Görsel Yükle veya Sürükle</p>
-                  <p className="text-xs text-slate-500">JPG, PNG, WebP — maks. 10 MB</p>
-                </div>
+                <DetectDropStage
+                  dragOver={isDragOver}
+                  onPick={() => fileInputRef.current?.click()}
+                />
               </div>
             ) : (
               /* Image + canvas */
@@ -945,14 +932,14 @@ export default function DetectionPage() {
                       className="absolute inset-0 bg-black/50 flex items-center justify-center z-20 overflow-hidden pointer-events-none"
                     >
                       <motion.div
-                        className="absolute left-0 right-0 h-0.5 bg-cyan-400"
+                        className="absolute left-0 right-0 h-px bg-[var(--measure)]"
                         style={{ boxShadow: "0 0 10px 4px rgba(0,212,255,0.55)" }}
                         initial={{ top: "0%" }}
                         animate={{ top: ["0%", "100%", "0%"] }}
                         transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                       />
-                      <p className="font-mono text-xs text-cyan-400 animate-pulse z-10 mt-16">
-                        Tespit ediliyor…
+                      <p className="z-10 mt-16 animate-pulse font-mono text-[var(--p-text-2xs)] text-[var(--measure)]">
+                        {t("Tespit ediliyor…")}
                       </p>
                     </motion.div>
                   )}
@@ -967,7 +954,7 @@ export default function DetectionPage() {
                     handleClear();
                   }}
                   className="absolute top-3 left-3 size-7 rounded-lg bg-black/60 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-red-400 hover:border-red-500/40 transition-all z-10"
-                  title="Görseli kaldır"
+                  title={t("Görseli kaldır")}
                 >
                   <X className="size-3.5" />
                 </button>
@@ -975,12 +962,12 @@ export default function DetectionPage() {
                 {/* Latency / pan badges */}
                 <div className="absolute top-14 right-3 flex items-center gap-1.5 z-10">
                   {latencyMs !== null && (
-                    <span className="px-2 py-0.5 rounded bg-black/60 font-mono text-[10px] text-cyan-400">
+                    <span className="rounded bg-[color-mix(in_oklch,var(--p-graphite-990)_70%,transparent)] px-2 py-0.5 font-mono text-[var(--p-text-3xs)] text-[var(--measure)]">
                       {Math.round(latencyMs)} ms
                     </span>
                   )}
                   {zoom > 1 && hasPan && (
-                    <span className="px-2 py-0.5 rounded bg-black/60 font-mono text-[10px] text-cyan-400 flex items-center gap-1">
+                    <span className="flex items-center gap-1 rounded bg-[color-mix(in_oklch,var(--p-graphite-990)_70%,transparent)] px-2 py-0.5 font-mono text-[var(--p-text-3xs)] text-[var(--measure)]">
                       <Move className="size-2.5" />
                       {panOffset.x > 0 ? "+" : ""}{Math.round(panOffset.x)}{" "}
                       {panOffset.y > 0 ? "+" : ""}{Math.round(panOffset.y)}
@@ -1000,7 +987,7 @@ export default function DetectionPage() {
                 {/* Pan hint */}
                 {showPanHint && (
                   <div className="absolute bottom-16 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-lg bg-[#00D4FF]/15 border border-[#00D4FF]/40 font-mono text-[11px] text-[#00D4FF] whitespace-nowrap pointer-events-none z-10">
-                    Görüntüyü keşfetmek için sürükleyin
+                    {t("Görüntüyü keşfetmek için sürükleyin")}
                   </div>
                 )}
 
@@ -1027,12 +1014,12 @@ export default function DetectionPage() {
             className={cn(
               "w-full h-[52px] rounded-xl text-sm font-bold tracking-wide transition-all duration-300 shrink-0 flex items-center justify-center gap-2",
               canDetect && !isDetecting
-                ? "bg-gradient-to-r from-cyan-500 to-sky-500 text-[#080B0F] hover:shadow-[0_0_24px_rgba(0,212,255,0.4)] hover:brightness-110"
+                ? "bg-[var(--p-bone-100)] text-[var(--p-graphite-990)] hover:bg-[var(--p-bone-050)]"
                 : "bg-[#0D1117] border border-[#1E293B] text-slate-600 cursor-not-allowed"
             )}
           >
             <Scan className="size-4" />
-            {isDetecting ? "TARANIYOR…" : "TARA"}
+            {t(isDetecting ? "TARANIYOR…" : "TARA")}
           </button>
 
           {/* Results panel */}
@@ -1040,11 +1027,11 @@ export default function DetectionPage() {
             <div className="space-y-2 shrink-0">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                  <Eye className="size-3.5 text-cyan-400" />
-                  Tespit Sonuçları
+                  <Eye className="size-3.5" />
+                  {t("Tespit Sonuçları")}
                 </p>
                 {hasResults && (
-                  <span className="text-[10px] font-mono text-cyan-600">
+                  <span className="font-mono text-[var(--p-text-3xs)] text-[var(--ink-mute)]">
                     {detections.length} nesne
                   </span>
                 )}
@@ -1056,8 +1043,8 @@ export default function DetectionPage() {
                     type="text"
                     value={filterText}
                     onChange={(e) => setFilterText(e.target.value)}
-                    placeholder="Sonuçlarda ara…"
-                    className="w-full pl-7 pr-3 py-1.5 rounded-lg bg-[#080B0F] border border-[#1E293B] text-[11px] font-mono text-slate-300 placeholder-slate-600 focus:outline-none focus:border-cyan-500/40 transition-all"
+                    placeholder={t("Sonuçlarda ara…")}
+                    className="w-full rounded-[var(--p-radius-cell)] border border-[var(--edge-hair)] bg-[color-mix(in_oklch,var(--p-graphite-990)_62%,transparent)] py-1.5 pl-7 pr-3 font-mono text-[var(--p-text-3xs)] text-[var(--ink-body)] placeholder-[var(--ink-faint)] transition-colors focus:border-[var(--accent-status-edge)] focus:outline-none"
                   />
                 </div>
               )}
@@ -1077,19 +1064,19 @@ export default function DetectionPage() {
                         exit={{ opacity: 0 }}
                         onClick={() => handleLabelClick(det.label)}
                         className={cn(
-                          "w-full text-left px-3 py-2.5 rounded-lg border border-l-[3px] border-l-cyan-500 transition-all duration-300",
+                          "w-full text-left px-3 py-2.5 rounded-[0_var(--p-radius-cell)_var(--p-radius-cell)_0] border border-l-2 border-l-[var(--edge-rule)] transition-colors duration-300",
                           isSel
-                            ? "bg-cyan-500/10 border-cyan-500/50 border-l-cyan-400"
+                            ? "bg-[var(--accent-status-wash)] border-[var(--accent-status-edge)] border-l-[var(--accent-status)]"
                             : isAnySel
                               ? "bg-[#080B0F] border-[rgba(255,255,255,0.06)] opacity-40 hover:opacity-70"
-                              : "bg-[#080B0F] border-[rgba(255,255,255,0.06)] hover:border-cyan-500/30 hover:bg-slate-800/40"
+                              : "bg-transparent border-[var(--edge-hair)] hover:border-[var(--edge-rule)] hover:bg-[color-mix(in_oklch,var(--p-graphite-700)_40%,transparent)]"
                         )}
                       >
                         <div className="flex items-center gap-2 mb-1.5">
                           <ColorDot color={det.color} />
                           <span className={cn(
                             "text-sm font-bold flex-1 truncate",
-                            isSel ? "text-cyan-400" : "text-slate-100"
+                            isSel ? "text-[var(--accent-status-soft)]" : "text-[var(--ink-title)]"
                           )}>
                             {det.labelTr || translateLabel(det.label)}
                           </span>
@@ -1099,7 +1086,7 @@ export default function DetectionPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <ConfidenceBar score={det.score} color="#00D4FF" />
-                          <span className="text-xs font-bold text-cyan-400 shrink-0">
+                          <span className="shrink-0 font-mono text-[var(--p-text-2xs)] text-[var(--measure)]">
                             {Math.round(det.score * 100)}%
                           </span>
                         </div>
@@ -1108,16 +1095,18 @@ export default function DetectionPage() {
                   })
                 ) : !hasResults ? (
                   <div className="flex flex-col items-center justify-center h-32 gap-2 text-center">
-                    <Scan className="size-8 text-slate-700" />
-                    <p className="text-[11px] font-mono text-slate-600 leading-relaxed">
-                      {hasImage
-                        ? "Bir nesne yazın ve\nTespit Et&apos;e tıklayın"
-                        : "Önce bir görsel yükleyin"}
+                    <Scan className="size-7 text-[var(--ink-faint)]" />
+                    <p className="font-mono text-[var(--p-text-3xs)] leading-relaxed text-[var(--ink-faint)]">
+                      {t(
+                        hasImage
+                          ? "Bir nesne yazın ve Tespit Et'e tıklayın"
+                          : "Önce bir görsel yükleyin"
+                      )}
                     </p>
                   </div>
                 ) : (
                   <div className="flex items-center justify-center h-16">
-                    <p className="text-[11px] font-mono text-slate-600">Sonuç bulunamadı</p>
+                    <p className="text-[11px] font-mono text-slate-600">{t("Sonuç bulunamadı")}</p>
                   </div>
                 )}
               </AnimatePresence>
@@ -1136,12 +1125,10 @@ export default function DetectionPage() {
       {/* BOTTOM — controls                                                  */}
       {/* ================================================================== */}
       <div className="shrink-0 flex items-center justify-between border-t border-[rgba(255,255,255,0.06)] px-6 py-3">
-        <span className="text-sm text-slate-400">
+        <span className="text-[var(--p-text-sm)] text-[var(--ink-body)]">
           {hasResults
-            ? `${detections.length} nesne tespit edildi`
-            : hasImage
-              ? "Tespit bekleniyor"
-              : "Görsel yüklenmedi"}
+            ? `${detections.length} ${t("nesne tespit edildi")}`
+            : t(hasImage ? "Tespit bekleniyor" : "Görsel yüklenmedi")}
         </span>
 
         <div className="flex items-center gap-2">
@@ -1151,12 +1138,12 @@ export default function DetectionPage() {
             className={cn(
               "flex items-center gap-1.5 px-3.5 py-2 rounded-lg border text-xs font-semibold transition-all duration-300",
               hasResults
-                ? "border-slate-700 text-slate-400 hover:border-cyan-500 hover:text-cyan-400"
+                ? "border-[var(--edge-hair)] text-[var(--ink-mute)] hover:border-[var(--edge-rule)] hover:text-[var(--ink-title)]"
                 : "border-[rgba(255,255,255,0.06)] text-slate-700 cursor-not-allowed"
             )}
           >
             {showBoxes ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-            {showBoxes ? "Kutular Gizle" : "Kutular Göster"}
+            {t(showBoxes ? "Kutular Gizle" : "Kutular Göster")}
           </button>
           <button
             onClick={handleShowAll}
@@ -1164,11 +1151,11 @@ export default function DetectionPage() {
             className={cn(
               "flex items-center gap-1.5 px-3.5 py-2 rounded-lg border text-xs font-semibold transition-all duration-300",
               hasResults
-                ? "border-slate-700 text-slate-400 hover:border-cyan-500 hover:text-cyan-400"
+                ? "border-[var(--edge-hair)] text-[var(--ink-mute)] hover:border-[var(--edge-rule)] hover:text-[var(--ink-title)]"
                 : "border-[rgba(255,255,255,0.06)] text-slate-700 cursor-not-allowed"
             )}
           >
-            Tümünü Göster
+            {t("Tümünü Göster")}
           </button>
           <button
             onClick={handleClear}
@@ -1181,7 +1168,7 @@ export default function DetectionPage() {
             )}
           >
             <X className="size-3.5" />
-            Temizle
+            {t("Temizle")}
           </button>
           <button
             onClick={handleExport}
@@ -1189,12 +1176,12 @@ export default function DetectionPage() {
             className={cn(
               "flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all duration-300",
               hasImage && hasResults
-                ? "bg-cyan-500 text-black hover:shadow-[0_0_16px_rgba(0,212,255,0.4)] hover:brightness-110"
+                ? "bg-[var(--accent-status)] text-[var(--p-graphite-990)] hover:brightness-110"
                 : "border border-[rgba(255,255,255,0.06)] text-slate-700 cursor-not-allowed"
             )}
           >
             <Download className="size-3.5" />
-            Dışa Aktar
+            {t("Dışa Aktar")}
           </button>
         </div>
       </div>

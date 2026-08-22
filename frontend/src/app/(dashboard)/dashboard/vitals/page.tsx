@@ -34,8 +34,10 @@ import {
   ReferenceLine,
   CartesianGrid
 } from "recharts";
+import { useLocale, pct } from "@/lib/i18n";
 
 export default function VitalMonitorPage() {
+  const { t, locale } = useLocale();
   const { currentTelemetry, history, connectionStatus } = useVitalStream();
   
   const report = useVitalStore((s) => s.report);
@@ -231,14 +233,12 @@ export default function VitalMonitorPage() {
       {/* Top Banner Navigation */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between border-b border-[#1E293B] pb-3 shrink-0 gap-2">
         <div className="flex flex-col md:flex-row md:items-center gap-4">
-          <span className="text-sm font-bold font-mono tracking-widest text-[#00D4FF]">
-            ARGUSLENS VITAL MONITOR
-          </span>
+          <span className="text-sm font-bold font-mono tracking-widest text-[#00D4FF]">{t("ARGUSLENS VİTAL MONİTÖR")}</span>
           <div className="hidden md:flex items-center gap-4 text-[10px] text-slate-500 font-mono border-l border-[#1E293B] pl-4">
-            <span>Patient ID: <span className="text-slate-300 font-bold">ARG-2025-0421</span></span>
-            <span>Name: <span className="text-slate-300 font-bold">Mehmet Yılmaz</span></span>
-            <span>Age: <span className="text-slate-300 font-bold">62</span></span>
-            <span>Unit: <span className="text-slate-300 font-bold">ICU-3</span></span>
+            <span>{t("Hasta No:")}<span className="text-slate-300 font-bold">{t("ARG-2025-0421")}</span></span>
+            <span>{t("Ad:")}<span className="text-slate-300 font-bold">{t("Mehmet Yılmaz")}</span></span>
+            <span>{t("Yaş:")}<span className="text-slate-300 font-bold">62</span></span>
+            <span>{t("Servis:")}<span className="text-slate-300 font-bold">{t("ICU-3")}</span></span>
           </div>
         </div>
         
@@ -247,8 +247,7 @@ export default function VitalMonitorPage() {
             {currentTime}
           </span>
           <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-green-500/20 bg-green-500/10 text-green-400 text-[9px] font-mono font-bold uppercase animate-pulse">
-            <span className="size-1.5 rounded-full bg-green-400"></span> LIVE
-          </span>
+            <span className="size-1.5 rounded-full bg-green-400"></span>{t("CANLI")}</span>
           <button className="text-slate-500 hover:text-slate-300 cursor-pointer">
             <Maximize className="size-4" />
           </button>
@@ -261,7 +260,7 @@ export default function VitalMonitorPage() {
       {!currentTelemetry ? (
         <div className="flex-1 flex flex-col items-center justify-center py-40 border border-[#1E293B] bg-[#0D1117] rounded-xl space-y-4">
           <RefreshCw className="size-8 animate-spin text-[#00D4FF]" />
-          <p className="text-xs text-slate-400 font-mono">Biyonik lens sensor verileri bekleniyor...</p>
+          <p className="text-xs text-slate-400 font-mono">{t("Biyonik lens sensor verileri bekleniyor...")}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 flex-1">
@@ -273,9 +272,9 @@ export default function VitalMonitorPage() {
             <div className="border border-[#1E293B] bg-[#0D1117]/60 rounded-xl p-3 flex flex-col h-[180px] justify-between relative overflow-hidden">
               <div className="flex items-center justify-between z-10">
                 <span className="text-[10px] font-mono font-bold text-red-500 uppercase tracking-wider flex items-center gap-1.5">
-                  <Heart className="size-3.5 fill-red-500 animate-pulse text-red-500" /> HEART RATE (bpm)
+                  <Heart className="size-3.5 fill-red-500 animate-pulse text-red-500" /> {t("NABIZ (bpm)")}
                 </span>
-                <span className="text-[10px] font-mono text-slate-500">Prediction (Next 15s)</span>
+                <span className="text-[10px] font-mono text-slate-500">{t("Tahmin (sonraki 15 sn)")}</span>
               </div>
               <div className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
@@ -304,7 +303,7 @@ export default function VitalMonitorPage() {
                 <span className="text-[10px] font-mono font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
                   <Droplet className="size-3.5 fill-cyan-400 text-cyan-400" /> SPO₂ (%)
                 </span>
-                <span className="text-[10px] font-mono text-slate-500">Prediction (Next 15s)</span>
+                <span className="text-[10px] font-mono text-slate-500">{t("Tahmin (sonraki 15 sn)")}</span>
               </div>
               <div className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
@@ -329,9 +328,9 @@ export default function VitalMonitorPage() {
             <div className="border border-[#1E293B] bg-[#0D1117]/60 rounded-xl p-3 flex flex-col h-[180px] justify-between relative overflow-hidden">
               <div className="flex items-center justify-between z-10">
                 <span className="text-[10px] font-mono font-bold text-yellow-500 uppercase tracking-wider flex items-center gap-1.5">
-                  <Activity className="size-3.5 text-yellow-500" /> SYSTOLIC BP (mmHg)
+                  <Activity className="size-3.5 text-yellow-500" /> {t("SİSTOLİK TANSİYON (mmHg)")}
                 </span>
-                <span className="text-[10px] font-mono text-slate-500">Prediction (Next 15s)</span>
+                <span className="text-[10px] font-mono text-slate-500">{t("Tahmin (sonraki 15 sn)")}</span>
               </div>
               <div className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
@@ -357,26 +356,24 @@ export default function VitalMonitorPage() {
               
               {/* Trend Summary */}
               <div className="border border-[#1E293B] bg-[#0D1117] rounded-xl p-3 flex flex-col justify-between">
-                <p className="text-[10px] font-mono font-bold text-slate-400 tracking-wider border-b border-[#1E293B] pb-1.5 uppercase">
-                  TREND SUMMARY
-                </p>
+                <p className="text-[10px] font-mono font-bold text-slate-400 tracking-wider border-b border-[#1E293B] pb-1.5 uppercase">{t("TREND ÖZETİ")}</p>
                 <div className="space-y-2 py-2 text-xs font-mono">
                   <div className="flex justify-between items-center">
-                    <span className="text-red-500">Heart Rate</span>
+                    <span className="text-red-500">{t("Nabız")}</span>
                     <span className="text-slate-400 flex items-center gap-1">
-                      {analysis?.trend_direction === "up" ? "Rising ↑" : analysis?.trend_direction === "down" ? "Falling ↓" : "Stable →"}
+                      {analysis?.trend_direction === "up" ? t("Yükseliyor ↑") : analysis?.trend_direction === "down" ? t("Düşüyor ↓") : t("Sabit →")}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-cyan-400">SpO₂</span>
+                    <span className="text-cyan-400">{t("SpO₂")}</span>
                     <span className="text-slate-400 flex items-center gap-1">
-                      {analysis?.trend_direction === "up" ? "Stable →" : "Stable →"}
+                      {analysis?.trend_direction === "up" ? t("Sabit →") : t("Sabit →")}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-yellow-500">Systolic BP</span>
+                    <span className="text-yellow-500">{t("Sistolik Tansiyon")}</span>
                     <span className="text-slate-400 flex items-center gap-1">
-                      {analysis?.trend_direction === "up" ? "Rising ↑" : analysis?.trend_direction === "down" ? "Falling ↓" : "Stable →"}
+                      {analysis?.trend_direction === "up" ? t("Yükseliyor ↑") : analysis?.trend_direction === "down" ? t("Düşüyor ↓") : t("Sabit →")}
                     </span>
                   </div>
                 </div>
@@ -384,13 +381,11 @@ export default function VitalMonitorPage() {
 
               {/* Anomaly Probability */}
               <div className="border border-[#1E293B] bg-[#0D1117] rounded-xl p-3 flex flex-col justify-between">
-                <p className="text-[10px] font-mono font-bold text-slate-400 tracking-wider border-b border-[#1E293B] pb-1.5 uppercase">
-                  ANOMALY INDEX
-                </p>
+                <p className="text-[10px] font-mono font-bold text-slate-400 tracking-wider border-b border-[#1E293B] pb-1.5 uppercase">{t("ANOMALİ İNDEKSİ")}</p>
                 <div className="space-y-2 py-2 text-[10px] font-mono">
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400">Total Anomaly</span>
-                    <span className="text-red-400 font-bold">%{( (analysis?.anomaly_probability ?? 0) * 100 ).toFixed(1)}</span>
+                    <span className="text-slate-400">{t("Toplam anomali")}</span>
+                    <span className="text-red-400 font-bold">{pct((((analysis?.anomaly_probability ?? 0) * 100)).toFixed(1), locale)}</span>
                   </div>
                   {/* Progress bar */}
                   <div className="h-1.5 w-full bg-[#161D2D] rounded-full overflow-hidden">
@@ -406,8 +401,8 @@ export default function VitalMonitorPage() {
                     />
                   </div>
                   <div className="flex justify-between text-[8px] text-slate-500">
-                    <span>NORMAL</span>
-                    <span>ANOMALOUS</span>
+                    <span>{t("NORMAL")}</span>
+                    <span>{t("ANOMALİ")}</span>
                   </div>
                 </div>
               </div>
@@ -415,30 +410,30 @@ export default function VitalMonitorPage() {
               {/* Prediction Horizon */}
               <div className="border border-[#1E293B] bg-[#0D1117] rounded-xl p-3 flex flex-col justify-between">
                 <p className="text-[10px] font-mono font-bold text-slate-400 tracking-wider border-b border-[#1E293B] pb-1.5 uppercase">
-                  PREDICTION (10s)
+                  {t("TAHMİN (10 sn)")}
                 </p>
                 <div className="space-y-1.5 py-1.5 text-[9px] font-mono">
                   <div className="flex justify-between border-b border-[#1E293B]/40 pb-1 text-slate-500">
-                    <span>PARAM</span>
-                    <span>MIN/MAX</span>
-                    <span>TREND</span>
+                    <span>{t("PARAMETRE")}</span>
+                    <span>{t("EN AZ / EN ÇOK")}</span>
+                    <span>{t("TREND")}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-red-500">HR</span>
+                    <span className="text-red-500">{t("HR")}</span>
                     <span className="text-slate-300">
                       {Math.round((currentVitals?.heart_rate ?? 70) * 0.95)}/{Math.round((currentVitals?.heart_rate ?? 70) * 1.05)}
                     </span>
                     <span className="text-slate-400">{analysis?.trend_direction === "up" ? "▲" : analysis?.trend_direction === "down" ? "▼" : "→"}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-cyan-400">SpO₂</span>
+                    <span className="text-cyan-400">{t("SpO₂")}</span>
                     <span className="text-slate-300">
                       {Math.round((currentVitals?.spo2 ?? 98) * 0.99)}/{Math.round(Math.min(100, (currentVitals?.spo2 ?? 98) * 1.01))}
                     </span>
                     <span className="text-slate-400">→</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-yellow-500">SBP</span>
+                    <span className="text-yellow-500">{t("SBP")}</span>
                     <span className="text-slate-300">
                       {Math.round((currentVitals?.systolic_bp ?? 120) * 0.96)}/{Math.round((currentVitals?.systolic_bp ?? 120) * 1.04)}
                     </span>
@@ -449,9 +444,7 @@ export default function VitalMonitorPage() {
 
               {/* Notes / Alerts & GPT-4o generator */}
               <div className="border border-[#1E293B] bg-[#0D1117] rounded-xl p-3 flex flex-col justify-between">
-                <p className="text-[10px] font-mono font-bold text-slate-400 tracking-wider border-b border-[#1E293B] pb-1.5 uppercase">
-                  AI DOKTOR RAPORU
-                </p>
+                <p className="text-[10px] font-mono font-bold text-slate-400 tracking-wider border-b border-[#1E293B] pb-1.5 uppercase">{t("AI DOKTOR RAPORU")}</p>
                 <div className="py-2 flex flex-col gap-2">
                   <button
                     onClick={handleGenerateReport}
@@ -460,19 +453,15 @@ export default function VitalMonitorPage() {
                   >
                     {generatingReport ? (
                       <>
-                        <RefreshCw className="size-3 animate-spin" />
-                        ÜRETİLİYOR...
-                      </>
+                        <RefreshCw className="size-3 animate-spin" />{t("ÜRETİLİYOR...")}</>
                     ) : (
                       <>
-                        <BrainCircuit className="size-3" />
-                        GPT-4O RAPORU YAZ
-                      </>
+                        <BrainCircuit className="size-3" />{t("GPT-4O RAPORU YAZ")}</>
                     )}
                   </button>
                   {report && (
                     <div className="flex items-center gap-1.5 text-[9px] text-green-400 font-mono">
-                      <span className="size-1.5 rounded-full bg-green-400 inline-block animate-pulse"></span> Rapor Hazır! (Aşağıya bakın)
+                      <span className="size-1.5 rounded-full bg-green-400 inline-block animate-pulse"></span> {t("Rapor Hazır! (Aşağıya bakın)")}
                     </div>
                   )}
                 </div>
@@ -488,38 +477,36 @@ export default function VitalMonitorPage() {
             {/* Primary Vitals cards */}
             <div className="border border-[#1E293B] bg-[#0D1117] rounded-xl p-3 flex items-center justify-between h-[75px]">
               <div>
-                <span className="text-[9px] font-mono text-slate-500 block">HEART RATE</span>
+                <span className="text-[9px] font-mono text-slate-500 block">{t("NABIZ")}</span>
                 <span className="text-xl font-bold font-mono text-red-500 tracking-wider">{currentVitals?.heart_rate ?? "—"}</span>
-                <span className="text-[9px] font-mono text-slate-500 block">Range: 60 - 100 | ECG</span>
+                <span className="text-[9px] font-mono text-slate-500 block">{t("Aralık: 60 - 100 | ECG")}</span>
               </div>
               <Heart className="size-7 text-red-500/40 fill-red-500/10" />
             </div>
 
             <div className="border border-[#1E293B] bg-[#0D1117] rounded-xl p-3 flex items-center justify-between h-[75px]">
               <div>
-                <span className="text-[9px] font-mono text-slate-500 block">SPO₂</span>
+                <span className="text-[9px] font-mono text-slate-500 block">{t("SPO₂")}</span>
                 <span className="text-xl font-bold font-mono text-cyan-400 tracking-wider">{currentVitals?.spo2 ?? "—"} %</span>
-                <span className="text-[9px] font-mono text-slate-500 block">Range: 95 - 100 | SpO₂</span>
+                <span className="text-[9px] font-mono text-slate-500 block">{t("Aralık: 95 - 100 | SpO₂")}</span>
               </div>
               <Droplet className="size-7 text-cyan-500/40 fill-cyan-500/10" />
             </div>
 
             <div className="border border-[#1E293B] bg-[#0D1117] rounded-xl p-3 flex items-center justify-between h-[75px]">
               <div>
-                <span className="text-[9px] font-mono text-slate-500 block">BLOOD PRESSURE</span>
+                <span className="text-[9px] font-mono text-slate-500 block">{t("TANSİYON")}</span>
                 <span className="text-xl font-bold font-mono text-yellow-500 tracking-wider">
                   {currentVitals ? `${Math.round(currentVitals.systolic_bp)}/${Math.round(currentVitals.diastolic_bp)}` : "—"}
                 </span>
-                <span className="text-[9px] font-mono text-slate-500 block">Range: 90-140/60-90 | NIBP</span>
+                <span className="text-[9px] font-mono text-slate-500 block">{t("Aralık: 90-140/60-90 | NIBP")}</span>
               </div>
               <Gauge className="size-7 text-yellow-500/40" />
             </div>
 
             {/* NEWS2 Risk Circular Gauge */}
             <div className="border border-[#1E293B] bg-[#0D1117] rounded-xl p-3 flex flex-col justify-between shrink-0">
-              <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider block border-b border-[#1E293B] pb-1.5">
-                NEWS2 RISK SCORE
-              </span>
+              <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider block border-b border-[#1E293B] pb-1.5">{t("NEWS2 RİSK SKORU")}</span>
               
               <div className="flex items-center gap-4 py-3">
                 {/* SVG Ring progress */}
@@ -552,22 +539,22 @@ export default function VitalMonitorPage() {
                   </svg>
                   <div className="absolute flex flex-col items-center justify-center">
                     <span className="text-base font-bold font-mono text-slate-100">{riskScore}</span>
-                    <span className="text-[8px] font-mono text-slate-500 uppercase">NEWS2</span>
+                    <span className="text-[8px] font-mono text-slate-500 uppercase">{t("NEWS2")}</span>
                   </div>
                 </div>
 
                 <div className="text-[10px] font-mono space-y-1">
                   <div className="flex items-center gap-1.5">
                     <span className="size-2 rounded-full bg-green-500"></span>
-                    <span className="text-slate-400">0 - 4: SAFE</span>
+                    <span className="text-slate-400">{t("0 - 4: GÜVENLİ")}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="size-2 rounded-full bg-amber-500"></span>
-                    <span className="text-slate-400">5 - 6: CAUTION</span>
+                    <span className="text-slate-400">{t("5 - 6: DİKKAT")}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="size-2 rounded-full bg-red-500"></span>
-                    <span className="text-slate-400">7+: DANGER</span>
+                    <span className="text-slate-400">{t("7+: TEHLİKE")}</span>
                   </div>
                 </div>
               </div>
@@ -575,28 +562,26 @@ export default function VitalMonitorPage() {
 
             {/* Secondary vitals grid */}
             <div className="border border-[#1E293B] bg-[#0D1117] rounded-xl p-3 flex flex-col gap-2 shrink-0">
-              <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider block border-b border-[#1E293B] pb-1.5">
-                SECONDARY VITAL SIGNS
-              </span>
+              <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider block border-b border-[#1E293B] pb-1.5">{t("İKİNCİL VİTAL BULGULAR")}</span>
               <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
                 <div className="border border-[#161D2D] bg-[#0D1117] p-2 rounded-lg">
-                  <span className="text-slate-500 block">TEMPERATURE</span>
+                  <span className="text-slate-500 block">{t("VÜCUT SICAKLIĞI")}</span>
                   <span className="text-xs font-bold text-amber-500">{currentVitals?.temperature ?? "—"} °C</span>
                 </div>
                 <div className="border border-[#161D2D] bg-[#0D1117] p-2 rounded-lg">
-                  <span className="text-slate-500 block">RESPIRATION</span>
-                  <span className="text-xs font-bold text-cyan-400">{currentVitals?.respiratory_rate ?? "—"} /dk</span>
+                  <span className="text-slate-500 block">{t("SOLUNUM")}</span>
+                  <span className="text-xs font-bold text-cyan-400">{currentVitals?.respiratory_rate ?? "—"} {t("/dk")}</span>
                 </div>
                 <div className="border border-[#161D2D] bg-[#0D1117] p-2 rounded-lg">
-                  <span className="text-slate-500 block">IOP (EYE)</span>
+                  <span className="text-slate-500 block">{t("GÖZ İÇİ BASINCI")}</span>
                   <span className="text-xs font-bold text-blue-400">{currentVitals?.eye_pressure ?? "—"} mmHg</span>
                 </div>
                 <div className="border border-[#161D2D] bg-[#0D1117] p-2 rounded-lg">
-                  <span className="text-slate-500 block">TEAR GLUCOSE</span>
+                  <span className="text-slate-500 block">{t("GÖZYAŞI GLİKOZU")}</span>
                   <span className="text-xs font-bold text-green-400">{currentVitals?.tear_glucose ?? "—"} mg/dL</span>
                 </div>
                 <div className="border border-[#161D2D] bg-[#0D1117] p-2 rounded-lg col-span-2">
-                  <span className="text-slate-500 block">CORTISOL (STRESS)</span>
+                  <span className="text-slate-500 block">{t("KORTİZOL (STRES)")}</span>
                   <span className="text-xs font-bold text-purple-400">{currentVitals?.stress_level ?? "—"} mcg/dL</span>
                 </div>
               </div>
@@ -604,16 +589,14 @@ export default function VitalMonitorPage() {
 
             {/* System Status info panel */}
             <div className="border border-[#1E293B] bg-[#0D1117] rounded-xl p-3 flex flex-col justify-between shrink-0 text-[10px] font-mono space-y-2">
-              <span className="font-bold text-slate-400 uppercase tracking-wider block border-b border-[#1E293B] pb-1.5">
-                SYSTEM STATUS
-              </span>
+              <span className="font-bold text-slate-400 uppercase tracking-wider block border-b border-[#1E293B] pb-1.5">{t("SİSTEM DURUMU")}</span>
               <div className="flex justify-between items-center">
-                <span className="text-slate-500 flex items-center gap-1"><Cpu className="size-3 text-cyan-400" /> AI Inference</span>
-                <span className="text-green-400 font-bold">Active</span>
+                <span className="text-slate-500 flex items-center gap-1"><Cpu className="size-3 text-cyan-400" />{t("AI çıkarımı")}</span>
+                <span className="text-green-400 font-bold">{t("Etkin")}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-slate-500 flex items-center gap-1"><Compass className="size-3 text-cyan-400" /> Model Architecture</span>
-                <span className="text-slate-300 font-bold">Temporal Transformer v2.2</span>
+                <span className="text-slate-500 flex items-center gap-1"><Compass className="size-3 text-cyan-400" />{t("Model mimarisi")}</span>
+                <span className="text-slate-300 font-bold">{t("Temporal Transformer v2.2")}</span>
               </div>
             </div>
 
@@ -627,25 +610,20 @@ export default function VitalMonitorPage() {
         <div className="border border-purple-500/20 bg-[#111827] rounded-xl p-4 space-y-3 shrink-0 shadow-[0_0_20px_rgba(139,92,246,0.05)]">
           <div className="flex items-center justify-between border-b border-[#1E293B] pb-2">
             <span className="text-xs font-mono font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1.5">
-              <FileText className="size-4 text-purple-400" /> GPT-4O DOKTOR RAPORU VE TIBBİ TAVSİYELER
-            </span>
+              <FileText className="size-4 text-purple-400" />{t("GPT-4O HEKİM RAPORU VE TIBBİ TAVSİYELER")}</span>
             <div className="flex border-b border-transparent text-[10px] font-mono">
               <button
                 onClick={() => setActiveTab("report")}
                 className={`px-3 py-1 border-b-2 font-bold cursor-pointer transition-all ${
                   activeTab === "report" ? "border-cyan-500 text-cyan-400" : "border-transparent text-slate-500"
                 }`}
-              >
-                KLİNİK RAPOR
-              </button>
+              >{t("KLİNİK RAPOR")}</button>
               <button
                 onClick={() => setActiveTab("recs")}
                 className={`px-3 py-1 border-b-2 font-bold cursor-pointer transition-all ${
                   activeTab === "recs" ? "border-cyan-500 text-cyan-400" : "border-transparent text-slate-500"
                 }`}
-              >
-                TAVSİYELER
-              </button>
+              >{t("TAVSİYELER")}</button>
             </div>
           </div>
           <div className="text-slate-300 text-xs font-sans leading-relaxed whitespace-pre-line max-h-60 overflow-y-auto pr-2">
@@ -657,13 +635,13 @@ export default function VitalMonitorPage() {
       {/* Bottom Status Footer Bar (ICU Standard Status line) */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between border-t border-[#161D2D] pt-3 text-[10px] font-mono text-slate-500 shrink-0 gap-2">
         <div className="flex flex-wrap items-center gap-4">
-          <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-green-500"></span> Connection: Connected</span>
-          <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-green-500"></span> Data Streaming: Live</span>
-          <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-green-500"></span> AI Engine: Running</span>
+          <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-green-500"></span>{t("Bağlantı: kurulu")}</span>
+          <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-green-500"></span>{t("Veri akışı: canlı")}</span>
+          <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-green-500"></span>{t("AI motoru: çalışıyor")}</span>
         </div>
         <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1"><Server className="size-3" /> Server: arguslens-hub-01</span>
-          <span>Version: 4.0.0</span>
+          <span className="flex items-center gap-1"><Server className="size-3" />{t("Sunucu: arguslens-hub-01")}</span>
+          <span>{t("Sürüm: 4.0.0")}</span>
         </div>
       </div>
     </div>

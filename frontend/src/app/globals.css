@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./tokens.css";
 
 @theme {
   /* Backgrounds */
@@ -29,9 +30,11 @@
   --color-border: #1E293B;
   --color-border-active: #2D4A6E;
 
-  /* Fonts */
-  --font-sans: "Inter", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+  /* Fonts — yön A "Optik Enstrüman" */
+  --font-display: var(--font-bricolage), "Bricolage Grotesque", system-ui, sans-serif;
+  --font-sans: var(--font-instrument-sans), "Instrument Sans", system-ui, sans-serif;
+  --font-serif: var(--font-instrument-serif), "Instrument Serif", Georgia, serif;
+  --font-mono: var(--font-martian-mono), "Martian Mono", ui-monospace, monospace;
 
   /* Animations */
   --animate-pulse-slow: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
@@ -127,9 +130,9 @@
 html,
 body {
   height: 100%;
-  background-color: #080B0F;
-  color: #F1F5F9;
-  font-family: "Inter", system-ui, sans-serif;
+  background-color: var(--surface-ground);
+  color: var(--ink-body);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -175,4 +178,1859 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: #2D4A6E; }
 
 /* Selection */
-::selection { background: rgba(0, 212, 255, 0.2); color: #F1F5F9; }
+::selection { background: var(--selection-bg); color: var(--ink-title); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   OPTİK ENSTRÜMAN — landing katmanı primitifleri
+   Tüm değerler tokens.css dosyasından gelir. Bu blokta hardcode sayı yok.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Tipografik roller ─────────────────────────────────────────────────── */
+.t-display {
+  font-family: var(--font-display);
+  font-weight: var(--p-weight-black);
+  font-size: var(--p-display-lg);
+  line-height: 0.86;
+  letter-spacing: -0.045em;
+  color: var(--ink-title);
+  text-wrap: balance;
+}
+.t-display-sm {
+  font-family: var(--font-display);
+  font-weight: var(--p-weight-black);
+  font-size: var(--p-display-sm);
+  line-height: 0.92;
+  letter-spacing: -0.035em;
+  color: var(--ink-title);
+  text-wrap: balance;
+}
+/* Aşırı ağırlık kontrastı: aynı başlıkta 800 ve 200 yan yana */
+.t-counter {
+  font-family: var(--font-display);
+  font-weight: var(--p-weight-hair);
+  letter-spacing: -0.02em;
+  color: var(--ink-mute);
+}
+.t-manifesto {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: var(--p-weight-book);
+  font-size: var(--p-text-lg);
+  line-height: 1.24;
+  letter-spacing: -0.01em;
+  color: var(--ink-body);
+  text-wrap: balance;
+}
+.t-body {
+  font-family: var(--font-sans);
+  font-weight: var(--p-weight-book);
+  font-size: var(--p-text-base);
+  line-height: 1.6;
+  letter-spacing: 0.005em;
+  color: var(--ink-body);
+  max-width: var(--prose-max);
+  text-wrap: pretty;
+}
+/* Kadran etiketi — alet üzerindeki gravür yazı */
+.t-dial {
+  font-family: var(--font-mono);
+  font-weight: var(--p-weight-thin);
+  font-size: var(--p-text-3xs);
+  letter-spacing: var(--hud-track);
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  font-variant-numeric: tabular-nums;
+}
+/* Ölçüm — cyan renginin izinli olduğu TEK tipografik rol */
+.t-measure {
+  font-family: var(--font-mono);
+  font-weight: var(--p-weight-book);
+  font-size: var(--p-text-2xs);
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+  color: var(--measure);
+}
+
+/* ── Reveal primitifi: ODAĞA GELME. translateY yok, fade-in-up yok. ─────── */
+[data-reveal] {
+  opacity: 0;
+  filter: blur(var(--p-blur-defocus));
+  transform: scale(1.035);
+  transition:
+    opacity var(--p-dur-focus) var(--p-ease-focus) var(--reveal-delay, 0ms),
+    filter var(--p-dur-focus) var(--p-ease-focus) var(--reveal-delay, 0ms),
+    transform var(--p-dur-focus) var(--p-ease-focus) var(--reveal-delay, 0ms);
+  will-change: opacity, filter, transform;
+}
+[data-reveal].in-focus {
+  opacity: 1;
+  filter: blur(0);
+  transform: none;
+  will-change: auto;
+}
+/* İlk ekran varyantı: JS BEKLEMEZ.
+   [data-reveal] öğeleri opacity:0 başlar ve .in-focus sınıfını
+   IntersectionObserver ekler. Hero başlığı için bu, LCP'yi paket
+   indirme + parse süresinin arkasına kilitliyordu (ölçüldü: render
+   gecikmesi 2.8 sn). "boot" varyantı aynı odak-kaydırma hareketini
+   saf CSS animasyonuyla, sayfa boyanır boyanmaz oynatır. */
+[data-reveal="boot"] {
+  animation: focusIn var(--p-dur-focus) var(--p-ease-focus)
+    var(--reveal-delay, 0ms) both;
+  transition: none;
+}
+@keyframes focusIn {
+  from {
+    opacity: 0;
+    filter: blur(var(--p-blur-defocus));
+    transform: scale(1.035);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
+  }
+}
+
+/* Yatay varyant: diyafram kanadı gibi merkezden açılır */
+[data-reveal="iris"] {
+  clip-path: inset(0 46% 0 46%);
+  transition:
+    opacity var(--p-dur-rack) var(--p-ease-shutter) var(--reveal-delay, 0ms),
+    filter var(--p-dur-rack) var(--p-ease-shutter) var(--reveal-delay, 0ms),
+    clip-path var(--p-dur-rack) var(--p-ease-shutter) var(--reveal-delay, 0ms);
+  transform: none;
+}
+[data-reveal="iris"].in-focus { clip-path: inset(0 0 0 0); }
+
+/* ── Atmosferik arka plan katmanları ───────────────────────────────────── */
+/* L1: kaplama parlamaları — mor-mavi gradyan DEĞİL, üç ayrı optik hayalet */
+.optic-flare {
+  position: fixed;
+  inset: 0;
+  z-index: var(--p-z-backdrop);
+  pointer-events: none;
+  background:
+    radial-gradient(60% 42% at 12% -6%, var(--flare-primary), transparent 68%),
+    radial-gradient(46% 34% at 96% 18%, var(--flare-ghost), transparent 70%),
+    radial-gradient(80% 50% at 50% 112%, var(--flare-warm), transparent 72%);
+}
+/* L2: kazınmış yatay taksimat — kare grid değil, alet kadranı */
+.optic-rules {
+  position: fixed;
+  inset: 0;
+  z-index: var(--p-z-backdrop);
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--edge-hair) 0 1px,
+    transparent 1px var(--p-space-6)
+  );
+  opacity: 0.34;
+  -webkit-mask-image: radial-gradient(ellipse 120% 78% at 50% 40%, #000 18%, transparent 82%);
+  mask-image: radial-gradient(ellipse 120% 78% at 50% 40%, #000 18%, transparent 82%);
+}
+/* L3: anamorfik çizgi — scroll ile kayan tek yatay parlama */
+.optic-streak {
+  position: fixed;
+  left: -10%;
+  width: 120%;
+  height: 1px;
+  z-index: var(--p-z-backdrop);
+  pointer-events: none;
+  top: var(--streak-y, 38%);
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--measure-glow) 22%,
+    var(--measure-glow) 78%,
+    transparent
+  );
+  filter: blur(2px);
+  opacity: 0.7;
+}
+/* L4: optik vinyet */
+.optic-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: var(--p-z-vignette);
+  pointer-events: none;
+  background: radial-gradient(ellipse 96% 78% at 50% 46%, transparent 44%, var(--vignette) 100%);
+}
+/* L5: 35mm grain */
+.optic-grain {
+  position: fixed;
+  inset: -50%;
+  z-index: var(--p-z-grain);
+  pointer-events: none;
+  opacity: var(--grain-opacity);
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: grainDrift 5s steps(6) infinite;
+}
+@keyframes grainDrift {
+  0%   { transform: translate(0, 0); }
+  20%  { transform: translate(-3%, 2%); }
+  40%  { transform: translate(2%, -3%); }
+  60%  { transform: translate(-2%, -2%); }
+  80%  { transform: translate(3%, 1%); }
+  100% { transform: translate(0, 0); }
+}
+
+/* ── Plaka: kart yerine geçer. rounded-2xl blur kart DEĞİL. ─────────────── */
+.plate {
+  position: relative;
+  background: var(--plate-bg);
+  border: 1px solid var(--plate-edge);
+  border-radius: var(--plate-radius);
+  box-shadow: var(--plate-shadow);
+  padding: var(--plate-pad);
+  transition:
+    border-color var(--p-dur-snap) var(--p-ease-focus),
+    box-shadow var(--p-dur-focus) var(--p-ease-focus);
+}
+/* Gravür işareti — plakanın üst kenarında kesik cetvel, hover ile yanar */
+.plate::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: var(--p-space-4);
+  width: var(--p-space-4);
+  height: 1px;
+  background: var(--edge-live);
+  opacity: 0;
+  transition: opacity var(--p-dur-focus) var(--p-ease-focus);
+}
+.plate:hover {
+  border-color: var(--plate-edge-hover);
+  box-shadow: var(--plate-shadow-hover);
+}
+.plate:hover::before { opacity: 1; }
+
+/* Namlu — video ve canvas çerçevesi. Asimetrik yarıçap. */
+.barrel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--barrel-edge);
+  border-radius: var(--barrel-radius);
+  background: var(--surface-sunken);
+}
+/* Namlu içi halation — video kenarını yumuşatır, 720p kaynağı stile çevirir */
+.barrel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 88% 74% at 50% 50%, transparent 52%, var(--surface-sunken) 100%);
+}
+
+/* Tam kaplama namlu — hero zemininde çerçeve ve yarıçap olmamalı.
+   Tailwind'in border-0/rounded-none sınıfları .barrel ile aynı özgüllükte
+   olduğu için kazanmıyor; değiştirici sınıf gerekiyor. */
+.barrel-bleed {
+  border: 0;
+  border-radius: 0;
+}
+
+/* Diyafram */
+.aperture {
+  border-radius: var(--aperture-radius);
+  border: 1px solid var(--aperture-edge);
+}
+
+/* Ölçüm hücresi */
+.cell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--p-space-2);
+  padding: var(--cell-pad-y) var(--cell-pad-x);
+  background: var(--cell-bg);
+  border: 1px solid var(--cell-edge);
+  border-radius: var(--cell-radius);
+  color: var(--cell-ink);
+  font-family: var(--font-mono);
+  font-size: var(--p-text-2xs);
+  font-weight: var(--p-weight-book);
+  letter-spacing: 0.1em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ── Butonlar ──────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--p-space-2);
+  padding: var(--btn-pad-y) var(--btn-pad-x);
+  border-radius: var(--btn-radius);
+  font-family: var(--font-mono);
+  font-size: var(--p-text-2xs);
+  font-weight: var(--p-weight-book);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition:
+    background-color var(--p-dur-snap) var(--p-ease-focus),
+    border-color var(--p-dur-snap) var(--p-ease-focus),
+    color var(--p-dur-snap) var(--p-ease-focus);
+}
+.btn-primary {
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-ink);
+}
+.btn-primary:hover { background: var(--btn-primary-bg-hover); }
+.btn-ghost {
+  border-color: var(--btn-ghost-edge);
+  color: var(--btn-ghost-ink);
+  background: transparent;
+}
+.btn-ghost:hover {
+  border-color: var(--btn-ghost-edge-hover);
+  color: var(--ink-title);
+}
+
+/* ── Bölüm ritmi ───────────────────────────────────────────────────────── */
+.section {
+  position: relative;
+  padding-block: var(--section-pad-y);
+  padding-inline: var(--section-gutter);
+  /* Reveal ve scrub dönüşümleri (scale 1.035 / 1.06) dar ekranda kenardan
+     taşıyor. clip, overflow:hidden'ın aksine kaydırma kabı yaratmaz, bu
+     yüzden position:sticky ve ScrollTrigger pin bozulmaz. */
+  overflow-x: clip;
+}
+.shell {
+  width: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
+}
+
+/* ── HUD: video üstü ölçüm katmanı ─────────────────────────────────────── */
+.hud-frame {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--p-z-hud);
+}
+
+/* ── Erişilebilirlik ───────────────────────────────────────────────────── */
+:where(a, button, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+  border-radius: var(--p-radius-cell);
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.skip-link {
+  position: absolute;
+  top: var(--p-space-3);
+  left: var(--p-space-3);
+  z-index: 999;
+  transform: translateY(-200%);
+  transition: transform var(--p-dur-snap) var(--p-ease-focus);
+}
+.skip-link:focus-visible { transform: translateY(0); }
+
+/* ── prefers-reduced-motion: TÜM hareket kapanır, içerik görünür kalır ──── */
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal],
+  [data-reveal="iris"],
+  [data-reveal="boot"] {
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+    clip-path: none !important;
+    transition: none !important;
+    animation: none !important;
+  }
+  .optic-grain { animation: none !important; }
+  .optic-streak { display: none; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Odak nişangâhı (landing imleci) ───────────────────────────────────── */
+.reticle {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 200;
+  pointer-events: none;
+  width: var(--p-space-5);
+  height: var(--p-space-5);
+  opacity: 0;
+  transition: opacity var(--p-dur-snap) var(--p-ease-focus);
+}
+.reticle[data-visible="true"] { opacity: 1; }
+
+.reticle-ring {
+  position: absolute;
+  inset: 25%;
+  border: 1px solid var(--edge-live);
+  border-radius: var(--p-radius-aperture);
+  transition:
+    inset var(--p-dur-snap) var(--p-ease-focus),
+    border-color var(--p-dur-snap) var(--p-ease-focus);
+}
+.reticle[data-locked="true"] .reticle-ring {
+  inset: 0;
+  border-color: var(--measure);
+}
+
+.reticle-bar {
+  position: absolute;
+  background: var(--measure);
+  opacity: 0;
+  transition: opacity var(--p-dur-snap) var(--p-ease-focus);
+}
+.reticle-bar-x {
+  left: -30%;
+  top: 50%;
+  height: 1px;
+  width: 22%;
+}
+.reticle-bar-y {
+  right: -30%;
+  top: 50%;
+  height: 1px;
+  width: 22%;
+}
+.reticle[data-locked="true"] .reticle-bar { opacity: 0.75; }
+
+@media (pointer: coarse) {
+  .reticle { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reticle { display: none; }
+}
+
+/* ── Video grade ────────────────────────────────────────────────────────────
+   Kaynak klipler doygun ve parlak; ham hâlleriyle grafit-zeytin paleti
+   eziyorlar. Grade onları sanat yönünün içine çeker ve 720p yumuşaklığını
+   kasıtlı gösterir. */
+.barrel video {
+  filter: saturate(0.6) contrast(1.05) brightness(0.7);
+}
+.grade-optic video {
+  filter: saturate(0.38) contrast(1.12) brightness(0.44);
+}
+/* Zemin yıkaması — üstte ve altta metnin oturacağı koyu alan açar */
+.grade-optic::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    /* Yatay scrim — metin kolonunun kontrastını videonun en parlak
+       karesinde bile WCAG AA üstünde tutar. */
+    linear-gradient(
+      90deg,
+      color-mix(in oklch, var(--surface-ground) 92%, transparent) 0%,
+      color-mix(in oklch, var(--surface-ground) 74%, transparent) 34%,
+      color-mix(in oklch, var(--surface-ground) 20%, transparent) 62%,
+      transparent 100%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklch, var(--surface-ground) 72%, transparent) 0%,
+      color-mix(in oklch, var(--surface-ground) 22%, transparent) 38%,
+      color-mix(in oklch, var(--surface-ground) 56%, transparent) 72%,
+      color-mix(in oklch, var(--surface-ground) 94%, transparent) 100%
+    );
+}
+
+/* Sabit künye şeridi çapa hedeflerinin başlığını örtüyordu */
+[id^="sahne-"],
+#anlati,
+#kunye,
+#giris {
+  scroll-margin-top: var(--p-space-7);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   KİMLİK EKRANI — düzen ve panel
+   Sahne katmanları AuthAperture.tsx / .ap-* içinde (aşağıda).
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Tek panel: iki ayrı 01/02 bölümü kaldırıldı, GİRİŞ ve KAYIT aynı
+   panelde sekme olarak duruyor. Sayfa kaydırılmıyor. */
+.auth-scroll {
+  position: relative;
+  z-index: 1;
+}
+.auth-section {
+  min-height: 100svh;
+  display: grid;
+  grid-template-columns: 1fr;
+  align-content: center;
+  padding-inline: var(--section-gutter);
+  /* Dar: kayıt formu uzun; 21px dolgu 900px yükseklikte paneli taşırıyordu. */
+  padding-block: var(--p-space-2);
+}
+@media (min-width: 1024px) {
+  .auth-section {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 26rem);
+    align-items: center;
+  }
+  .auth-section > .auth-panel { grid-column: 2; }
+}
+
+/* GİRİŞ / KAYIT sekmeleri */
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--p-space-1);
+  padding: var(--p-space-1);
+  border: 1px solid var(--edge-hair);
+  border-radius: var(--p-radius-cell);
+  background: color-mix(in oklch, var(--p-graphite-990) 60%, transparent);
+  margin-bottom: var(--p-space-4);
+}
+.auth-tab {
+  padding: var(--p-space-2) var(--p-space-3);
+  border-radius: calc(var(--p-radius-cell) - 1px);
+  font-family: var(--font-mono);
+  font-size: var(--p-text-2xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color var(--p-dur-snap) var(--p-ease-focus),
+    color var(--p-dur-snap) var(--p-ease-focus);
+}
+.auth-tab[aria-selected="true"] {
+  background: var(--p-bone-100);
+  color: var(--p-graphite-990);
+}
+.auth-tab:not([aria-selected="true"]):hover { color: var(--ink-title); }
+
+/* ── Panel: gravür plakası. Cam kart bulanıklığı yok. ─────────────────── */
+.auth-panel {
+  position: relative;
+  width: 100%;
+  max-width: 27rem;
+  margin-left: auto;
+  background: linear-gradient(
+    177deg,
+    color-mix(in oklch, var(--p-graphite-850) 94%, transparent),
+    color-mix(in oklch, var(--p-graphite-990) 92%, transparent)
+  );
+  border: 1px solid var(--edge-hair);
+  border-radius: var(--p-radius-plate);
+  /* Dikeyde daha sıkı: panel 100svh'ye sığmalı, aksi hâlde giriş düğmesi
+     ilk ekranda kesiliyor. */
+  padding: var(--p-space-4) var(--p-space-5);
+  box-shadow:
+    0 1px 0 0 color-mix(in oklch, var(--p-bone-100) 7%, transparent) inset,
+    0 var(--p-space-5) var(--p-space-8) calc(-1 * var(--p-space-5))
+      color-mix(in oklch, var(--p-graphite-990) 86%, transparent);
+  /* Panel imleçle ters yönde çok hafif kayar → derinlik */
+  transform: translate3d(calc(var(--px) * -0.5%), calc(var(--py) * -0.5%), 0);
+}
+@media (max-width: 1023px) {
+  .auth-panel { margin-inline: auto; }
+}
+/* Üst kenarda kesik gravür cetveli */
+.auth-panel::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: var(--p-space-4);
+  width: var(--p-space-5);
+  height: 1px;
+  background: var(--edge-live);
+}
+
+/* ── Adım geçişi: odak kaydırma. Slide/fade-up yok. ───────────────────── */
+.auth-step {
+  animation: focusIn var(--p-dur-focus) var(--p-ease-focus) both;
+}
+
+/* ── Alanlar ──────────────────────────────────────────────────────────── */
+.auth-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--p-text-3xs);
+  font-weight: var(--p-weight-thin);
+  letter-spacing: var(--hud-track);
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-bottom: var(--p-space-2);
+}
+.auth-input {
+  width: 100%;
+  background: color-mix(in oklch, var(--p-graphite-990) 70%, transparent);
+  border: 1px solid var(--edge-hair);
+  border-radius: var(--p-radius-cell);
+  padding: var(--p-space-2) var(--p-space-3);
+  font-family: var(--font-sans);
+  font-size: var(--p-text-sm);
+  color: var(--ink-title);
+  transition:
+    border-color var(--p-dur-snap) var(--p-ease-focus),
+    box-shadow var(--p-dur-snap) var(--p-ease-focus);
+}
+.auth-input::placeholder { color: var(--ink-faint); }
+.auth-input:focus {
+  outline: none;
+  border-color: var(--edge-live);
+  box-shadow: 0 0 0 3px var(--measure-wash);
+}
+.auth-input[aria-invalid="true"] {
+  border-color: color-mix(in oklch, var(--state-critical) 60%, transparent);
+}
+
+/* Tek kullanımlık kod: geniş harf aralığı, tabular */
+.auth-otp {
+  font-family: var(--font-mono);
+  font-size: var(--p-text-md);
+  letter-spacing: 0.5em;
+  text-align: center;
+  padding-block: var(--p-space-3);
+}
+
+/* ── Sosyal sağlayıcı düğmeleri ───────────────────────────────────────── */
+.auth-provider {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: var(--p-space-3);
+  padding: var(--p-space-2) var(--p-space-3);
+  border: 1px solid var(--edge-rule);
+  border-radius: var(--p-radius-cell);
+  background: color-mix(in oklch, var(--p-graphite-800) 55%, transparent);
+  color: var(--ink-title);
+  font-family: var(--font-sans);
+  font-size: var(--p-text-sm);
+  cursor: pointer;
+  transition:
+    border-color var(--p-dur-snap) var(--p-ease-focus),
+    background-color var(--p-dur-snap) var(--p-ease-focus);
+}
+.auth-provider:hover:not(:disabled) {
+  border-color: var(--edge-live);
+  background: color-mix(in oklch, var(--p-graphite-700) 55%, transparent);
+}
+.auth-provider:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Ayırıcı: ortasında yazı olan gravür çizgisi */
+.auth-divider {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--p-space-3);
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+  font-size: var(--p-text-3xs);
+  letter-spacing: var(--hud-track);
+  text-transform: uppercase;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  height: 1px;
+  background: var(--edge-hair);
+}
+
+/* Hata / bilgi kutusu */
+.auth-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--p-space-2);
+  padding: var(--p-space-3);
+  border-radius: var(--p-radius-cell);
+  font-size: var(--p-text-xs);
+  line-height: 1.5;
+}
+.auth-note-error {
+  border: 1px solid color-mix(in oklch, var(--state-critical) 45%, transparent);
+  background: color-mix(in oklch, var(--state-critical) 12%, transparent);
+  color: var(--p-danger-300);
+}
+.auth-note-info {
+  border: 1px solid var(--edge-live);
+  background: var(--measure-wash);
+  color: var(--measure);
+  font-family: var(--font-mono);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-panel {
+    transform: none !important;
+  }
+  .auth-step { animation: none !important; }
+}
+
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   KİMLİK SAHNESİ — solda tam görünen göz, fareyle oynayan
+   --px/--py imleç (-1 … 1) · --op açılış
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.ap-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  --px: 0;
+  --py: 0;
+  --op: 0;
+}
+
+/* Zemin — video artık tüm ekranı kaplamadığı için gerçek bir zemin gerekiyor */
+.ap-ground {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    160deg,
+    var(--p-graphite-850) 0%,
+    var(--p-graphite-900) 46%,
+    var(--p-graphite-990) 100%
+  );
+}
+
+/* Kaplama parlaması — tek yönlü ışık, imleçle kayar */
+.ap-flare {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      54% 42% at calc(24% + var(--px) * 2.5%) calc(16% + var(--py) * 2.5%),
+      color-mix(in oklch, var(--p-signal-500) 12%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      36% 30% at 84% 88%,
+      color-mix(in oklch, var(--p-coating-500) 9%, transparent),
+      transparent 72%
+    );
+}
+
+/* ── Göz: TAM EKRAN ────────────────────────────────────────────────────── */
+.ap-eye-slot {
+  position: absolute;
+  inset: 0;
+  perspective: 1600px;
+  opacity: var(--op);
+}
+
+.ap-eye {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  /* Göz imleci takip eder. Ölçek payı (1.08) eğim sırasında kadrajın
+     kenarının açığa çıkmasını engeller — perspektifle eğilen tam ekran bir
+     yüzeyin köşeleri aksi hâlde içeri kaçıyor. */
+  transform:
+    rotateY(calc(var(--px) * 5deg))
+    rotateX(calc(var(--py) * -3.5deg))
+    translate3d(calc(var(--px) * -1.2%), calc(var(--py) * -1.2%), 0)
+    scale(calc(1.08 + (1 - var(--op)) * 0.04));
+  will-change: transform;
+}
+
+/* Tam ekran: cover. contain letterbox bırakıyordu. */
+.ap-eye video {
+  object-fit: cover;
+  filter: saturate(0.46) contrast(1.12) brightness(0.6);
+}
+.ap-eye .barrel::after { display: none; }
+
+@media (max-width: 1023px) {
+  .ap-eye {
+    transform:
+      translate3d(calc(var(--px) * -1%), calc(var(--py) * -1%), 0)
+      scale(1.06);
+  }
+}
+
+/* Panel tarafını okunur tutan yıkama */
+.ap-wash {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 46%,
+    color-mix(in oklch, var(--surface-ground) 62%, transparent) 62%,
+    color-mix(in oklch, var(--surface-ground) 92%, transparent) 100%
+  );
+}
+@media (max-width: 1023px) {
+  .ap-wash {
+    background: linear-gradient(
+      180deg,
+      transparent 0%,
+      transparent 26%,
+      color-mix(in oklch, var(--surface-ground) 76%, transparent) 44%,
+      color-mix(in oklch, var(--surface-ground) 96%, transparent) 100%
+    );
+  }
+}
+
+.ap-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 90% 82% at 32% 50%,
+    transparent 40%,
+    color-mix(in oklch, var(--p-graphite-990) 56%, transparent) 100%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ap-eye {
+    transform: none !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   KAMERA SAYFASI — "Optik Enstrüman" uyarlaması
+   --px/--py fare · --wz tekerlek · --op açılış
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Vizör çerçevesi ───────────────────────────────────────────────────── */
+.vis-stage {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--edge-rule);
+  /* Asimetrik: namlu ucu üstte yuvarlak, altta plaka gibi düz */
+  border-radius: var(--p-radius-barrel) var(--p-radius-barrel)
+    var(--p-radius-plate) var(--p-radius-plate);
+  background: var(--surface-sunken);
+}
+
+/* ── Bekleme sahnesi ───────────────────────────────────────────────────── */
+.vis-idle {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  --px: 0;
+  --py: 0;
+  --wz: 0;
+  --op: 0;
+  display: grid;
+  align-content: center;
+  padding-inline: clamp(var(--p-space-4), 5vw, var(--p-space-7));
+}
+
+.vis-idle-video {
+  position: absolute;
+  inset: -6%;
+  opacity: var(--op);
+  /* Fare görüntüyü kaydırır, tekerlek ekseninde iter */
+  transform:
+    translate3d(calc(var(--px) * -2%), calc(var(--py) * -2%), 0)
+    scale(calc(1.06 + var(--wz) * 0.05));
+  will-change: transform;
+}
+.vis-idle-video video {
+  object-fit: cover;
+  /* Grade: klip palete çekilir, üstündeki metin okunur kalır */
+  filter: saturate(0.55) contrast(1.1) brightness(0.58);
+}
+
+/* Okunabilirlik: metnin oturduğu sol banda ağırlık */
+.vis-idle-wash {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in oklch, var(--p-graphite-990) 84%, transparent) 0%,
+      color-mix(in oklch, var(--p-graphite-990) 52%, transparent) 44%,
+      color-mix(in oklch, var(--p-graphite-990) 16%, transparent) 76%,
+      color-mix(in oklch, var(--p-graphite-990) 44%, transparent) 100%
+    ),
+    radial-gradient(
+      ellipse 92% 84% at 40% 50%,
+      transparent 38%,
+      color-mix(in oklch, var(--p-graphite-990) 66%, transparent) 100%
+    );
+}
+
+.vis-idle-body {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  justify-items: start;
+  gap: var(--p-space-3);
+  max-width: 34rem;
+  /* Metin görüntünün TERSİNE kayar → katman ayrışır */
+  transform: translate3d(calc(var(--px) * 0.9%), calc(var(--py) * 0.9%), 0);
+  opacity: var(--op);
+}
+
+.vis-idle-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--p-space-2);
+}
+/* Durum noktasi: olculmus deger degil, DURUM. Amber. */
+.vis-dot {
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: var(--p-radius-aperture);
+  background: var(--accent-status);
+  box-shadow: 0 0 0 3px var(--accent-status-wash);
+}
+
+.vis-idle-title {
+  font-family: var(--font-display);
+  font-weight: var(--p-weight-black);
+  font-size: clamp(2.25rem, 4.6vw, 4rem);
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  color: var(--ink-title);
+}
+
+.vis-idle-copy {
+  font-family: var(--font-sans);
+  font-size: var(--p-text-sm);
+  line-height: 1.6;
+  color: var(--ink-body);
+  max-width: 32rem;
+}
+
+.vis-start {
+  margin-top: var(--p-space-2);
+}
+
+.vis-idle-cells {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--p-space-2);
+  margin-top: var(--p-space-2);
+}
+
+/* ── Sağ raf: gravür plakalar (rounded-2xl cam kart değil) ─────────────── */
+.vis-plate {
+  position: relative;
+  background: var(--plate-bg);
+  border: 1px solid var(--plate-edge);
+  border-radius: var(--p-radius-plate);
+  box-shadow: var(--plate-shadow);
+  padding: var(--p-space-4);
+  transition: border-color var(--p-dur-snap) var(--p-ease-focus);
+}
+.vis-plate::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: var(--p-space-4);
+  inline-size: var(--p-space-5);
+  block-size: 1px;
+  background: var(--edge-live);
+}
+.vis-plate-head {
+  display: flex;
+  align-items: center;
+  gap: var(--p-space-2);
+  margin-bottom: var(--p-space-3);
+}
+
+/* ── Yaklaştırma: kadran taksimatı ────────────────────────────────────── */
+.vis-zoom {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--p-space-1);
+  padding: var(--p-space-1);
+  border: 1px solid var(--edge-hair);
+  border-radius: var(--p-radius-cell);
+  background: color-mix(in oklch, var(--p-graphite-990) 62%, transparent);
+}
+.vis-zoom-btn {
+  padding-block: var(--p-space-2);
+  border-radius: calc(var(--p-radius-cell) - 1px);
+  font-family: var(--font-mono);
+  font-size: var(--p-text-2xs);
+  letter-spacing: 0.06em;
+  color: var(--ink-mute);
+  background: transparent;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  transition:
+    background-color var(--p-dur-snap) var(--p-ease-focus),
+    color var(--p-dur-snap) var(--p-ease-focus);
+}
+.vis-zoom-btn:hover:not([aria-pressed="true"]) { color: var(--ink-title); }
+.vis-zoom-btn[aria-pressed="true"] {
+  background: var(--p-bone-100);
+  color: var(--p-graphite-990);
+}
+
+/* ── Göz durumu listesi ───────────────────────────────────────────────── */
+.vis-group-label {
+  font-family: var(--font-mono);
+  font-size: var(--p-text-3xs);
+  letter-spacing: var(--hud-track);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: var(--p-space-2);
+}
+
+.vis-cond {
+  inline-size: 100%;
+  text-align: start;
+  display: grid;
+  gap: 2px;
+  padding: var(--p-space-3);
+  border: 1px solid transparent;
+  border-inline-start: 2px solid var(--edge-hair);
+  border-radius: 0 var(--p-radius-cell) var(--p-radius-cell) 0;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    border-color var(--p-dur-snap) var(--p-ease-focus),
+    background-color var(--p-dur-snap) var(--p-ease-focus);
+  /* Liste artik aranabilir ve klavyeyle geziliyor; filtrelenen sonuclar
+     aninda gorunmeli. Kaydirmaya bagli reveal kaldirildi — arama sonucu
+     bulanik baslarsa kullanilamaz hale geliyordu. */
+  animation: focusIn var(--p-dur-snap) var(--p-ease-focus) both;
+}
+.vis-cond:hover {
+  background: color-mix(in oklch, var(--p-graphite-800) 45%, transparent);
+  border-inline-start-color: var(--edge-rule);
+}
+.vis-cond[aria-pressed="true"] {
+  border-inline-start-color: var(--measure);
+  background: var(--measure-wash);
+}
+.vis-cond-name {
+  font-family: var(--font-sans);
+  font-size: var(--p-text-sm);
+  color: var(--ink-title);
+}
+.vis-cond[aria-pressed="true"] .vis-cond-name { color: var(--measure); }
+.vis-cond-label {
+  font-family: var(--font-sans);
+  font-size: var(--p-text-xs);
+  color: var(--ink-mute);
+  line-height: 1.35;
+}
+
+/* Liste kaydırma çubuğu — alet hissi */
+.vis-scroll {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  padding-inline-end: var(--p-space-2);
+}
+
+/* ── Bilgi plakası ────────────────────────────────────────────────────── */
+.vis-info {
+  border: 1px solid var(--edge-hair);
+  border-inline-start: 2px solid var(--measure);
+  border-radius: 0 var(--p-radius-plate) var(--p-radius-plate) 0;
+  background: var(--measure-wash);
+  padding: var(--p-space-4);
+  display: grid;
+  gap: var(--p-space-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vis-idle-video,
+  .vis-idle-body {
+    transform: none !important;
+  }
+  .vis-cond {
+    opacity: 1 !important;
+    filter: none !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   KONSOL KABUĞU — gravürlü alet plakası
+   Renk görevleri:  cyan = ölçülmüş değer · amber = durum ve aktif seçim
+                    kemik = birincil eylem · kırmızı = yalnız tehlike
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.console-shell {
+  position: relative;
+  background: linear-gradient(
+    162deg,
+    var(--p-graphite-850) 0%,
+    var(--p-graphite-900) 44%,
+    var(--p-graphite-990) 100%
+  );
+}
+
+/* Yatay taksimat — alet plakası gravürü. Kare grid DEĞİL. */
+.console-rules {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    color-mix(in oklch, var(--p-bone-500) 5%, transparent) 0 1px,
+    transparent 1px var(--p-space-6)
+  );
+  -webkit-mask-image: radial-gradient(ellipse 120% 90% at 50% 0%, #000 12%, transparent 86%);
+  mask-image: radial-gradient(ellipse 120% 90% at 50% 0%, #000 12%, transparent 86%);
+  opacity: 0.6;
+}
+
+/* Tek yönlü kaplama parlaması */
+.console-flare {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      46% 34% at 22% -4%,
+      color-mix(in oklch, var(--p-signal-500) 10%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      34% 26% at 92% 96%,
+      color-mix(in oklch, var(--p-amber-500) 7%, transparent),
+      transparent 72%
+    );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SOL RAF — gravür raf + kayan gösterge
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.rail {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  block-size: 100%;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklch, var(--p-graphite-850) 92%, transparent),
+    color-mix(in oklch, var(--p-graphite-990) 96%, transparent)
+  );
+  border-inline-end: 1px solid var(--edge-hair);
+}
+/* Rafın iç kenarında ince kemik çizgisi — metal kenar hissi */
+.rail::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  inline-size: 1px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in oklch, var(--p-bone-100) 10%, transparent) 22%,
+    color-mix(in oklch, var(--p-bone-100) 4%, transparent) 78%,
+    transparent
+  );
+}
+
+/* ── Marka kilidi ─────────────────────────────────────────────────────── */
+.rail-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--p-space-3);
+  min-inline-size: 0;
+  padding: var(--p-space-4) var(--p-space-4) var(--p-space-4);
+  border-block-end: 1px solid var(--edge-hair);
+}
+/* Marka isareti: olcum degil. Kemik cizgi + kemik ikon. */
+.rail-mark {
+  position: relative;
+  flex-shrink: 0;
+  inline-size: 40px;
+  block-size: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--edge-rule);
+  border-radius: var(--p-radius-cell);
+  background: color-mix(in oklch, var(--p-bone-100) 5%, transparent);
+  color: var(--ink-title);
+}
+.rail-word {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-display);
+  font-size: var(--p-text-md);
+  line-height: 1;
+  letter-spacing: -0.045em;
+  color: var(--ink-title);
+  font-weight: var(--p-weight-black);
+  white-space: nowrap;
+}
+.rail-word span {
+  font-weight: var(--p-weight-hair);
+  color: var(--ink-mute);
+}
+
+/* ── Gezinme ──────────────────────────────────────────────────────────── */
+.rail-nav {
+  position: relative;
+  flex: 1;
+  min-inline-size: 0;
+  padding: var(--p-space-3) var(--p-space-2);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Kayan gösterge: aktif öğeyi YUMUŞAKÇA takip eder.
+   Her öğeye ayrı bir çubuk koymak yerine tek bir çubuk kayar — bu, menüyü
+   bir alet kadranı gibi okutur. Konum JS'ten --y / --h ile gelir. */
+.rail-marker {
+  position: absolute;
+  inset-inline-start: 0;
+  inline-size: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--accent-status);
+  box-shadow: 0 0 var(--p-space-3) var(--accent-status-glow);
+  transform: translateY(var(--y, 0));
+  block-size: var(--h, 0);
+  opacity: var(--marker-on, 0);
+  transition:
+    transform var(--p-dur-focus) var(--p-ease-focus),
+    height var(--p-dur-focus) var(--p-ease-focus),
+    opacity var(--p-dur-snap) var(--p-ease-focus);
+  pointer-events: none;
+}
+
+.rail-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--p-space-3);
+  inline-size: 100%;
+  padding: var(--p-space-3);
+  border-radius: var(--p-radius-cell);
+  color: var(--ink-mute);
+  font-family: var(--font-sans);
+  font-size: var(--p-text-sm);
+  transition:
+    color var(--p-dur-snap) var(--p-ease-focus),
+    background-color var(--p-dur-snap) var(--p-ease-focus);
+  /* Sırayla odaktan gelir */
+  opacity: 0;
+  filter: blur(5px);
+  animation: focusIn var(--p-dur-focus) var(--p-ease-focus)
+    calc(var(--i, 0) * 55ms) both;
+}
+.rail-item:hover {
+  color: var(--ink-title);
+  background: color-mix(in oklch, var(--p-graphite-700) 40%, transparent);
+}
+.rail-item[aria-current="page"] {
+  color: var(--accent-status-soft);
+  background: var(--accent-status-wash);
+}
+.rail-item svg {
+  flex-shrink: 0;
+  inline-size: 18px;
+  block-size: 18px;
+  transition: transform var(--p-dur-focus) var(--p-ease-focus);
+}
+.rail-item:hover svg { transform: translateX(2px); }
+.rail-item[aria-current="page"] svg { color: var(--accent-status); }
+
+/* Grup etiketi */
+.rail-group {
+  font-family: var(--font-mono);
+  font-size: var(--p-text-3xs);
+  letter-spacing: var(--hook, 0.22em);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding: var(--p-space-4) var(--p-space-3) var(--p-space-2);
+}
+
+/* ── Alt blok: sistem + kullanıcı ─────────────────────────────────────── */
+.rail-foot {
+  border-block-start: 1px solid var(--edge-hair);
+  padding: var(--p-space-3);
+  display: grid;
+  gap: var(--p-space-3);
+  /* Grid/flex çocukları varsayılan min-width:auto ile içeriğin
+     min-content genişliğine şişiyor ve rafı aşıyordu (259px > 256px). */
+  min-inline-size: 0;
+}
+.rail-foot > * { min-inline-size: 0; }
+
+.rail-meter {
+  display: grid;
+  gap: var(--p-space-2);
+  min-inline-size: 0;
+  padding: var(--p-space-3);
+  border: 1px solid var(--edge-hair);
+  border-radius: var(--p-radius-plate);
+  background: color-mix(in oklch, var(--p-graphite-990) 55%, transparent);
+}
+.rail-meter-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--p-space-2);
+}
+.rail-meter-track {
+  block-size: 2px;
+  border-radius: 2px;
+  background: color-mix(in oklch, var(--p-bone-500) 14%, transparent);
+  overflow: hidden;
+}
+.rail-meter-fill {
+  block-size: 100%;
+  background: var(--accent-status);
+  box-shadow: 0 0 var(--p-space-2) var(--accent-status-glow);
+  transition: width var(--p-dur-rack) var(--p-ease-focus);
+}
+
+.rail-user {
+  display: flex;
+  align-items: center;
+  gap: var(--p-space-3);
+  min-inline-size: 0;
+  padding: var(--p-space-3);
+  border: 1px solid var(--edge-hair);
+  border-radius: var(--p-radius-plate);
+  background: color-mix(in oklch, var(--p-graphite-990) 55%, transparent);
+  transition: border-color var(--p-dur-snap) var(--p-ease-focus);
+}
+.rail-user:hover { border-color: var(--edge-rule); }
+.rail-avatar {
+  position: relative;
+  flex-shrink: 0;
+  inline-size: 32px;
+  block-size: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--p-radius-aperture);
+  border: 1px solid var(--edge-rule);
+  color: var(--ink-body);
+}
+.rail-avatar-dot {
+  position: absolute;
+  inset-block-end: -1px;
+  inset-inline-end: -1px;
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: var(--p-radius-aperture);
+  background: var(--accent-status);
+  border: 2px solid var(--p-graphite-990);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ÜST ÇUBUK
+   ══════════════════════════════════════════════════════════════════════════ */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--p-space-3);
+  padding-inline: var(--p-space-4);
+  padding-block: var(--p-space-2);
+  min-block-size: 56px;
+  flex-shrink: 0;
+  background: color-mix(in oklch, var(--p-graphite-990) 72%, transparent);
+  border-block-end: 1px solid var(--edge-hair);
+}
+.topbar-clock {
+  font-family: var(--font-mono);
+  font-size: var(--p-text-2xs);
+  letter-spacing: 0.14em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-body);
+  min-inline-size: 84px;
+}
+.topbar-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  inline-size: 34px;
+  block-size: 34px;
+  border-radius: var(--p-radius-cell);
+  color: var(--ink-mute);
+  transition:
+    color var(--p-dur-snap) var(--p-ease-focus),
+    background-color var(--p-dur-snap) var(--p-ease-focus);
+}
+.topbar-btn:hover {
+  color: var(--ink-title);
+  background: color-mix(in oklch, var(--p-graphite-700) 45%, transparent);
+}
+.topbar-badge {
+  position: absolute;
+  top: 3px;
+  inset-inline-end: 3px;
+  min-inline-size: 15px;
+  block-size: 15px;
+  padding-inline: 3px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--p-radius-aperture);
+  background: var(--state-critical);
+  color: var(--p-bone-050);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+.topbar-user {
+  display: flex;
+  align-items: center;
+  gap: var(--p-space-2);
+  padding: var(--p-space-2) var(--p-space-3);
+  border: 1px solid var(--edge-hair);
+  border-radius: var(--p-radius-cell);
+  color: var(--ink-body);
+  font-family: var(--font-sans);
+  font-size: var(--p-text-xs);
+  transition: border-color var(--p-dur-snap) var(--p-ease-focus);
+}
+.topbar-user:hover { border-color: var(--edge-rule); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Aktif seçim artık AMBER (cyan yalnız ölçümde)
+   ══════════════════════════════════════════════════════════════════════════ */
+.vis-zoom-btn[aria-pressed="true"] {
+  background: var(--accent-status);
+  color: var(--p-graphite-990);
+}
+.vis-cond[aria-pressed="true"] {
+  border-inline-start-color: var(--accent-status);
+  background: var(--accent-status-wash);
+}
+.vis-cond[aria-pressed="true"] .vis-cond-name { color: var(--accent-status-soft); }
+.vis-info {
+  border-inline-start-color: var(--accent-status);
+  background: var(--accent-status-wash);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rail-item {
+    animation: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+  }
+  .rail-marker { transition: none !important; }
+}
+
+/* ── Kamera: arama, siddet kadrani, karsilastirma ayiricisi ─────────────── */
+.vis-search {
+  display: flex;
+  align-items: center;
+  gap: var(--p-space-2);
+  padding: var(--p-space-2) var(--p-space-3);
+  border: 1px solid var(--edge-hair);
+  border-radius: var(--p-radius-cell);
+  background: color-mix(in oklch, var(--p-graphite-990) 62%, transparent);
+  transition: border-color var(--p-dur-snap) var(--p-ease-focus);
+}
+.vis-search:focus-within { border-color: var(--accent-status-edge); }
+.vis-search-input {
+  flex: 1;
+  min-inline-size: 0;
+  background: transparent;
+  border: 0;
+  outline: none;
+  font-family: var(--font-sans);
+  font-size: var(--p-text-xs);
+  color: var(--ink-title);
+}
+.vis-search-input::placeholder { color: var(--ink-faint); }
+.vis-kbd {
+  flex-shrink: 0;
+  padding: 1px 5px;
+  border: 1px solid var(--edge-hair);
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: var(--p-text-3xs);
+  color: var(--ink-faint);
+}
+
+/* Klavye imleci — secim degil, gezinme isareti */
+.vis-cond[data-cursor="true"] {
+  background: color-mix(in oklch, var(--p-graphite-700) 45%, transparent);
+  border-inline-start-color: var(--edge-rule);
+}
+
+/* Siddet kadrani */
+.vis-range {
+  inline-size: 100%;
+  appearance: none;
+  block-size: 2px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--accent-status) 0%,
+    var(--accent-status) var(--fill, 60%),
+    color-mix(in oklch, var(--p-bone-500) 16%, transparent) var(--fill, 60%)
+  );
+  cursor: pointer;
+}
+.vis-range::-webkit-slider-thumb {
+  appearance: none;
+  inline-size: 14px;
+  block-size: 14px;
+  border-radius: var(--p-radius-aperture);
+  background: var(--p-bone-100);
+  border: 2px solid var(--p-graphite-990);
+  box-shadow: 0 0 var(--p-space-3) var(--accent-status-glow);
+}
+.vis-range::-moz-range-thumb {
+  inline-size: 14px;
+  block-size: 14px;
+  border: 2px solid var(--p-graphite-990);
+  border-radius: var(--p-radius-aperture);
+  background: var(--p-bone-100);
+}
+.vis-range:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* Karsilastirma ayiricisi */
+.vis-split-handle {
+  position: absolute;
+  inset-block: 0;
+  inline-size: 2px;
+  margin-inline-start: -1px;
+  background: color-mix(in oklch, var(--p-bone-100) 85%, transparent);
+  cursor: ew-resize;
+  z-index: 30;
+  touch-action: none;
+}
+.vis-split-handle:focus-visible { outline: 2px solid var(--focus-ring); }
+.vis-split-grip {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  translate: -50% -50%;
+  inline-size: 26px;
+  block-size: 26px;
+  border-radius: var(--p-radius-aperture);
+  border: 1px solid var(--p-graphite-990);
+  background: var(--p-bone-100);
+  box-shadow: 0 var(--p-space-2) var(--p-space-4) rgb(0 0 0 / 0.45);
+}
+.vis-split-grip::before,
+.vis-split-grip::after {
+  content: "";
+  position: absolute;
+  inset-block: 8px;
+  inline-size: 1px;
+  background: var(--p-graphite-800);
+}
+.vis-split-grip::before { inset-inline-start: 10px; }
+.vis-split-grip::after { inset-inline-end: 10px; }
+.vis-split-tag {
+  position: absolute;
+  inset-block-start: var(--p-space-3);
+  padding: 2px 7px;
+  border-radius: 3px;
+  background: color-mix(in oklch, var(--p-graphite-990) 82%, transparent);
+  font-family: var(--font-mono);
+  font-size: var(--p-text-3xs);
+  letter-spacing: 0.16em;
+  color: var(--ink-body);
+  white-space: nowrap;
+}
+.vis-split-tag-l { inset-inline-end: var(--p-space-3); }
+.vis-split-tag-r { inset-inline-start: var(--p-space-3); }
+
+/* Durum degisiminde odak kaydirma */
+canvas[data-shift="true"] {
+  animation: rackShift 420ms var(--p-ease-focus);
+}
+@keyframes rackShift {
+  0%   { filter: blur(9px); opacity: 0.55; }
+  55%  { filter: blur(3px); opacity: 0.9; }
+  100% { filter: blur(0);   opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  canvas[data-shift="true"] { animation: none !important; }
+}
+
+/* ── Nesne tespiti: bırakma sahnesi ─────────────────────────────────────── */
+.vis-drop {
+  cursor: pointer;
+  transition: box-shadow var(--p-dur-snap) var(--p-ease-focus);
+}
+.vis-drop:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -3px;
+}
+/* Sürükleme sırasında diyafram açılır gibi zemin netleşir */
+.vis-drop[data-drag="true"] .vis-idle-video video {
+  filter: saturate(0.8) contrast(1.05) brightness(0.86);
+}
+.vis-drop[data-drag="true"] .vis-idle-wash { opacity: 0.55; }
+.vis-drop[data-drag="true"] .vis-drop-mark {
+  border-color: var(--accent-status);
+  color: var(--accent-status);
+}
+.vis-idle-wash { transition: opacity var(--p-dur-focus) var(--p-ease-focus); }
+.vis-drop .vis-idle-video video {
+  transition: filter var(--p-dur-focus) var(--p-ease-focus);
+}
+
+.vis-drop-body { gap: var(--p-space-3); }
+
+.vis-drop-mark {
+  display: grid;
+  place-items: center;
+  inline-size: 56px;
+  block-size: 56px;
+  border: 1px solid var(--edge-rule);
+  border-radius: var(--p-radius-plate);
+  background: color-mix(in oklch, var(--p-graphite-990) 55%, transparent);
+  color: var(--ink-title);
+  margin-block-end: var(--p-space-2);
+  transition:
+    border-color var(--p-dur-snap) var(--p-ease-focus),
+    color var(--p-dur-snap) var(--p-ease-focus),
+    transform var(--p-dur-focus) var(--p-ease-focus);
+}
+.vis-drop:hover .vis-drop-mark { transform: translateY(-3px); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SAĞLIK PROFİLİ
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.prof-page { scroll-behavior: smooth; }
+
+/* Başlık sahnesi — sayfa kaydıkça geride kalır */
+.prof-hero {
+  position: relative;
+  block-size: clamp(20rem, 42svh, 26rem);
+  border-block-end: 1px solid var(--edge-hair);
+}
+.prof-hero .vis-idle-video {
+  transform:
+    translate3d(calc(var(--px) * -2%), calc(var(--py) * -2% + var(--sp) * 4%), 0)
+    scale(calc(1.06 + var(--sp) * 0.06));
+}
+.prof-hero-body {
+  transform:
+    translate3d(calc(var(--px) * 0.8%), calc(var(--py) * 0.8% - var(--sp) * 14%), 0);
+  opacity: calc(var(--op) * (1 - var(--sp) * 0.85));
+}
+
+/* Bölüm reveal — kaydırdıkça odağa gelir */
+[data-reveal-block] {
+  opacity: 0;
+  filter: blur(8px);
+  transform: scale(1.012);
+}
+[data-reveal-block].in-focus {
+  opacity: 1;
+  filter: blur(0);
+  transform: none;
+  transition:
+    opacity var(--p-dur-focus) var(--p-ease-focus),
+    filter var(--p-dur-focus) var(--p-ease-focus),
+    transform var(--p-dur-focus) var(--p-ease-focus);
+}
+
+/* Hasta künyesi ızgarası */
+.prof-grid {
+  display: grid;
+  gap: var(--p-space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+}
+.prof-plate-alert { border-inline-start: 2px solid var(--state-critical); }
+
+.prof-rows {
+  display: grid;
+  gap: var(--p-space-3);
+}
+.prof-row {
+  display: grid;
+  gap: var(--p-space-1);
+}
+.prof-row dd { margin: 0; }
+
+.prof-input {
+  inline-size: 100%;
+  padding: var(--p-space-2) var(--p-space-3);
+  border: 1px solid var(--edge-hair);
+  border-radius: var(--p-radius-cell);
+  background: color-mix(in oklch, var(--p-graphite-990) 62%, transparent);
+  font-family: var(--font-sans);
+  font-size: var(--p-text-sm);
+  color: var(--ink-title);
+  transition: border-color var(--p-dur-snap) var(--p-ease-focus);
+}
+.prof-input::placeholder { color: var(--ink-faint); }
+.prof-input:focus {
+  outline: none;
+  border-color: var(--accent-status-edge);
+}
+
+/* Seçim düğmeleri (sigara / alkol) */
+.prof-choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--p-space-1);
+}
+.prof-choice-btn {
+  padding: var(--p-space-1) var(--p-space-3);
+  border: 1px solid var(--edge-hair);
+  border-radius: var(--p-radius-cell);
+  font-family: var(--font-sans);
+  font-size: var(--p-text-xs);
+  color: var(--ink-mute);
+  cursor: pointer;
+  transition:
+    border-color var(--p-dur-snap) var(--p-ease-focus),
+    color var(--p-dur-snap) var(--p-ease-focus),
+    background-color var(--p-dur-snap) var(--p-ease-focus);
+}
+.prof-choice-btn:hover { color: var(--ink-title); }
+.prof-choice-btn[aria-pressed="true"] {
+  border-color: var(--accent-status);
+  background: var(--accent-status-wash);
+  color: var(--accent-status-soft);
+}
+
+/* Organ bağışı anahtarı */
+.prof-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--p-space-2);
+  padding: var(--p-space-1) var(--p-space-3);
+  border: 1px solid var(--edge-hair);
+  border-radius: var(--p-radius-cell);
+  font-size: var(--p-text-xs);
+  color: var(--ink-mute);
+  cursor: pointer;
+}
+.prof-switch-dot {
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: var(--p-radius-aperture);
+  background: var(--ink-faint);
+  transition: background-color var(--p-dur-snap) var(--p-ease-focus);
+}
+.prof-switch[aria-checked="true"] {
+  border-color: var(--accent-status);
+  color: var(--accent-status-soft);
+}
+.prof-switch[aria-checked="true"] .prof-switch-dot {
+  background: var(--accent-status);
+  box-shadow: 0 0 0 3px var(--accent-status-wash);
+}
+
+/* Çipli listeler (aile öyküsü, aşılar) */
+.prof-chiplist { display: grid; gap: var(--p-space-2); }
+.prof-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--p-space-1);
+}
+.prof-empty {
+  font-family: var(--font-mono);
+  font-size: var(--p-text-3xs);
+  color: var(--ink-faint);
+}
+.prof-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--p-space-2);
+  padding: 3px var(--p-space-2);
+  border: 1px solid var(--edge-hair);
+  border-radius: var(--p-radius-cell);
+  font-size: var(--p-text-xs);
+  color: var(--ink-body);
+}
+.prof-chip button {
+  color: var(--ink-faint);
+  line-height: 1;
+  transition: color var(--p-dur-snap) var(--p-ease-focus);
+}
+.prof-chip button:hover { color: var(--state-critical); }
+.prof-chip-add {
+  display: flex;
+  gap: var(--p-space-2);
+}
+.prof-chip-add .btn { flex-shrink: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .prof-hero .vis-idle-video,
+  .prof-hero-body { transform: none !important; }
+  .prof-hero-body { opacity: 1 !important; }
+  [data-reveal-block] {
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+  }
+}
+
+/* ── Dil anahtarı ──────────────────────────────────────────────────────────
+   Sidebar'ın aktif işaretçisiyle aynı hareket: seçim kayar, yanıp sönmez. */
+.lang-switch {
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: repeat(2, 2.25rem);
+  align-items: stretch;
+  padding: 2px;
+  border: 1px solid var(--edge-hair);
+  border-radius: var(--p-radius-cell);
+  background: color-mix(in oklch, var(--p-graphite-990) 70%, transparent);
+}
+
+.lang-switch-marker {
+  position: absolute;
+  inset-block: 2px;
+  inset-inline-start: 2px;
+  inline-size: 2.25rem;
+  border-radius: calc(var(--p-radius-cell) - 1px);
+  background: color-mix(in oklch, var(--accent-status) 16%, transparent);
+  border: 1px solid var(--accent-status-edge);
+  transform: translateX(calc(var(--i, 0) * 2.25rem));
+  transition: transform var(--p-dur-focus) var(--p-ease-focus);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lang-switch-marker { transition: none; }
+}
+
+.lang-switch-cell {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-martian-mono), ui-monospace, monospace;
+  font-size: var(--p-text-2xs);
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  padding-block: 0.45rem;
+  color: var(--ink-faint);
+  cursor: pointer;
+  transition: color var(--p-dur-fast) var(--p-ease-focus);
+}
+
+.lang-switch-cell:hover { color: var(--ink-body); }
+
+.lang-switch-cell[aria-pressed="true"] {
+  color: var(--accent-status);
+}
+
+.lang-switch-cell:focus-visible {
+  outline: 1px solid var(--accent-status-edge);
+  outline-offset: 2px;
+  border-radius: calc(var(--p-radius-cell) - 1px);
+}

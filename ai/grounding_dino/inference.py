@@ -85,6 +85,104 @@ def _apply_nms(
     return [boxes[i] for i in keep], [labels[i] for i in keep], [scores[i] for i in keep]
 
 
+# Konum token'ı komşuluk yarıçapı. <loc_N> görüntüyü 1000 kutucuğa böler;
+# ±2 kutucuk 768 px'lik girdide yaklaşık ±1.5 px demektir. Model bir kenardan
+# emin olduğu hâlde olasılığı bitişik kutucuklara paylaştırdığı için tek
+# token'ın olasılığına bakmak kesinliği olduğundan düşük gösteriyor.
+_LOC_NEIGHBOURHOOD = 2
+
+
+def _detection_confidences(
+    tokenizer: Any,
+    token_strings: list[str],
+    probs: Any,
+    target_ids: list[int],
+    loc_token_ids: dict[int, int],
+) -> list[float]:
+    """Her tespit için modelin KENDİ olasılığından güven üret.
+
+    Florence-2 üretici bir modeldir; YOLO gibi bir sınıflandırma başlığı yok,
+    dolayısıyla hazır bir "confidence" döndürmez. Önceden buraya sabit 0.95
+    yazılıyordu — her nesne aynı oranda görünüyordu, yani ekrandaki sayı
+    hiçbir şey ölçmüyordu.
+
+    Modelin `<OD>` çıktısı şuna benzer:
+
+        building<loc_0><loc_0><loc_998><loc_430><loc_0>...car<loc_520>...
+
+    Dikkat: etiket kutu BAŞINA yazılmıyor. Bir etiket bir kez çıkıyor, ardından
+    o sınıfa ait tüm kutuların koordinatları geliyor. Ölçülen görselde 32 kutu
+    için yalnızca 6 etiket token'ı vardı. Bu yüzden etiket token'ının olasılığı
+    kutu başına bir güven olarak kullanılamaz; zaten o olasılık "sınıf doğru
+    mu" değil "sırada yeni bir sınıfa mı geçiyorum" kararını yansıtıyor.
+
+    Kutu başına gerçekten elde edilebilen sinyal koordinat kesinliğidir:
+    bir tespit = tam olarak 4 konum token'ı, güveni de bu dördünün
+    olasılıklarının geometrik ortalaması.
+
+    Her konum token'ında tek olasılık yerine ±`_LOC_NEIGHBOURHOOD` kutucukluk
+    toplam kütle alınır. Ölçüm: `<loc_521>` tek başına 0.377, komşularıyla
+    0.986 — model kenardan emin, olasılık yalnızca bitişik kutucuklara
+    yayılmış. Gerçekten belirsiz kenarlar düşük kalır (`<loc_998>` 0.038 →
+    0.039), yani ayırt etme gücü korunur.
+
+    Dönen liste, tespitlerin metinde göründükleri sıradaki güvenleridir;
+    Florence-2 son işleme adımı da kutuları aynı sırayla ürettiği için
+    indeksler eşleşir.
+    """
+    import math
+
+    confidences: list[float] = []
+    logs: list[float] = []
+
+    for i, tok in enumerate(token_strings):
+        if not tok or not tok.startswith("<loc_"):
+            continue
+        try:
+            n = int(tok[5:-1])
+        except ValueError:
+            continue
+
+        lo = max(0, n - _LOC_NEIGHBOURHOOD)
+        hi = min(999, n + _LOC_NEIGHBOURHOOD)
+        ids = [loc_token_ids[m] for m in range(lo, hi + 1) if m in loc_token_ids]
+        if ids:
+            mass = float(probs[i, ids].sum())
+        else:
+            mass = float(probs[i, target_ids[i]])
+
+        # log(0) korunması
+        logs.append(math.log(max(mass, 1e-6)))
+
+        if len(logs) == 4:
+            confidences.append(math.exp(sum(logs) / 4.0))
+            logs = []
+
+    return confidences
+
+
+def _clamp_confidence(value: float) -> float:
+    """Ekranda %0 ya da %100 göstermek yanıltıcı; uçları kırp."""
+    if value != value:  # NaN
+        return 0.5
+    return max(0.05, min(0.99, value))
+
+
+def _pick_confidence(confidences: list[float], index: int) -> float:
+    """i. tespitin güveni; hizalama tutmazsa listenin ortalamasına düş.
+
+    Token bölütleme ile son işlemenin kutu sayısı normalde eşleşir. Nadiren
+    (model bozuk çıktı ürettiğinde) eşleşmezse sabit bir sayı uydurmak yerine
+    aynı üretimin ortalama güvenini kullanıyoruz — hâlâ modelden gelen
+    gerçek bir değer.
+    """
+    if not confidences:
+        return 0.5
+    if index < len(confidences):
+        return _clamp_confidence(confidences[index])
+    return _clamp_confidence(sum(confidences) / len(confidences))
+
+
 class GroundingDinoPipeline:
     """
     Open-vocabulary object detection backed by YOLO-World.
@@ -103,6 +201,7 @@ class GroundingDinoPipeline:
         self._confidence_threshold = confidence_threshold
         self._model: Any = None
         self._florence_processor: Any = None
+        self._loc_ids_cache: dict[int, int] | None = None
         self._model_type: str = "none"
         self._model_id: str = ""
         self._loaded = False
@@ -187,6 +286,58 @@ class GroundingDinoPipeline:
     # Florence-2 inference
     # ------------------------------------------------------------------
 
+    def _loc_token_ids(self) -> dict[int, int]:
+        """`<loc_0>`..`<loc_999>` token kimlikleri. Bir kez kurulup saklanır."""
+        if self._loc_ids_cache is None:
+            tokenizer = self._florence_processor.tokenizer
+            table: dict[int, int] = {}
+            for n in range(1000):
+                tid = tokenizer.convert_tokens_to_ids(f"<loc_{n}>")
+                if tid is not None and tid >= 0:
+                    table[n] = tid
+            self._loc_ids_cache = table
+        return self._loc_ids_cache
+
+    def _confidences_for(self, inputs: dict, sequences: Any) -> list[float]:
+        """Üretilen dizi için tespit başına güven.
+
+        Üretilen diziyi decoder girdisi olarak modele geri besleriz
+        (öğretmen zorlaması) ve her adımdaki tam olasılık dağılımını alırız.
+
+        Neden `generate(output_scores=True)` değil: ışın aramasında dönen
+        skorlar kümülatif ışın skorlarıdır ve `beam_indices` ile yeniden
+        hizalanmaları gerekir; üstelik yalnızca seçilen token'ın olasılığını
+        verir. Bize konum token'ının KOMŞULARININ olasılığı da lazım, o yüzden
+        tam dağılım şart. Ek maliyet tek bir ileri geçiş — 3 ışınlı üretim
+        döngüsünün yanında ucuz.
+        """
+        import torch
+
+        try:
+            with torch.no_grad():
+                fwd = self._model(
+                    input_ids=inputs["input_ids"],
+                    pixel_values=inputs["pixel_values"],
+                    decoder_input_ids=sequences[:, :-1],
+                )
+            probs = torch.softmax(fwd.logits[0].float(), dim=-1)
+
+            target_ids = sequences[0, 1:].tolist()
+            n = min(probs.shape[0], len(target_ids))
+            target_ids = target_ids[:n]
+            tokens = self._florence_processor.tokenizer.convert_ids_to_tokens(target_ids)
+
+            return _detection_confidences(
+                self._florence_processor.tokenizer,
+                tokens,
+                probs,
+                target_ids,
+                self._loc_token_ids(),
+            )
+        except Exception as exc:
+            logger.warning("Güven skoru hesaplanamadı: %s", exc)
+            return []
+
     async def _infer_florence(self, image: np.ndarray, prompt: str) -> dict[str, Any]:
         from PIL import Image as PILImage
         import torch
@@ -251,6 +402,7 @@ class GroundingDinoPipeline:
                             num_beams=3,
                         )
                 generated_ids_od = await loop.run_in_executor(None, _generate_od)
+                conf_od = self._confidences_for(inputs_od, generated_ids_od)
                 generated_text_od = self._florence_processor.batch_decode(generated_ids_od, skip_special_tokens=False)[0]
                 result_od = self._florence_processor.post_process_generation(
                     generated_text_od, 
@@ -262,13 +414,13 @@ class GroundingDinoPipeline:
                 bboxes_od = grounding_data_od.get("bboxes", [])
                 labels_od = grounding_data_od.get("labels", [])
                 
-                for box, label in zip(bboxes_od, labels_od):
+                for i, (box, label) in enumerate(zip(bboxes_od, labels_od)):
                     label_clean = label.lower().strip()
                     for od_key, orig_q in od_queries:
                         if label_clean == od_key:
                             boxes_out.append([float(box[0]), float(box[1]), float(box[2]), float(box[3])])
                             labels_out.append(orig_q)
-                            scores_out.append(0.95)
+                            scores_out.append(_pick_confidence(conf_od, i))
             except Exception as exc:
                 logger.error("Dense OD execution failed: %s", exc)
 
@@ -293,8 +445,9 @@ class GroundingDinoPipeline:
                             max_new_tokens=1024,
                             num_beams=3,
                         )
-                        
+
                 generated_ids = await loop.run_in_executor(None, _generate)
+                conf_q = self._confidences_for(inputs, generated_ids)
                 generated_text = self._florence_processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
                 
                 result = self._florence_processor.post_process_generation(
@@ -307,10 +460,10 @@ class GroundingDinoPipeline:
                 bboxes = grounding_data.get("bboxes", [])
                 labels = grounding_data.get("labels", [])
                 
-                for box, label in zip(bboxes, labels):
+                for i, (box, label) in enumerate(zip(bboxes, labels)):
                     boxes_out.append([float(box[0]), float(box[1]), float(box[2]), float(box[3])])
                     labels_out.append(label if label else q)
-                    scores_out.append(0.90)
+                    scores_out.append(_pick_confidence(conf_q, i))
             except Exception as exc:
                 logger.error("Phrase grounding query=%s failed: %s", q, exc)
 

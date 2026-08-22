@@ -17,7 +17,7 @@ const SHORTCUTS = [
 ] as const;
 
 const NAV_MAP: Record<string, string> = {
-  h: "/dashboard",
+  h: "/dashboard/vision",
   k: "/dashboard/vision",
   n: "/dashboard/detection",
   v: "/dashboard/vitals",

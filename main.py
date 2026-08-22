@@ -10,6 +10,13 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
+# .env dosyasını os.environ'a yükle. core/config.py bunu yalnızca kendi
+# Settings modeline okuyor; GOOGLE_CLIENT_ID gibi doğrudan os.getenv ile
+# okunan değerlerin de gelmesi için burada bir kez yüklüyoruz.
+from dotenv import load_dotenv
+
+load_dotenv(override=False)
+
 import redis.asyncio as aioredis
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

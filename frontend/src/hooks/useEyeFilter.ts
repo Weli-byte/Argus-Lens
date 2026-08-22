@@ -46,13 +46,23 @@ type PanRef = { current: { x: number; y: number } | null | undefined };
 export function useEyeFilter(
   videoRef: React.RefObject<HTMLVideoElement | null>,
   canvasRef: React.RefObject<HTMLCanvasElement | null>,
-  panOffsetRef?: PanRef
+  panOffsetRef?: PanRef,
+  /* Bolunmus karsilastirma icin TEMIZ kare katmani.
+     Ayni kirpma/zoom/pan ile filtresiz cizilir. Ayri bir canvas kullanmanin
+     sebebi: 6 durum `canvas.style.filter` (CSS filtresi) kullaniyor ve bu
+     filtre canvas'in TAMAMINA uygulaniyor — ana canvas icinde bolme
+     yapilsaydi saglikli taraf da bulaniklasirdi. */
+  cleanCanvasRef?: React.RefObject<HTMLCanvasElement | null>
 ) {
   const [fps, setFps] = useState(0);
   const [isStreaming, setIsStreaming] = useState(false);
 
   const conditionRef  = useRef<EyeCondition>("normal");
   const zoomRef       = useRef<number>(1);
+  /* Şiddet 0..1. Bulanık tabanlı durumlarda blur px değerini ölçekler,
+     tüm durumlarda sağlıklı kare ile harmanlama oranını belirler.
+     Varsayılan 0.6 = önceki sabit görünüme yakın. */
+  const severityRef   = useRef<number>(0.6);
   const rafRef        = useRef<number>(0);
   const frameCountRef = useRef<number>(0);
   const fpsTimeRef    = useRef<number>(0);
@@ -77,6 +87,10 @@ export function useEyeFilter(
     const h  = canvas.height;  // 720
     const condition = conditionRef.current;
     const zoom      = zoomRef.current;
+    const sev       = severityRef.current;
+    /* Blur çarpanı: şiddet 0 → 0.22x, 1 → 1.65x. Kadranın ucundaki fark
+       görülebilsin diye lineer değil, hafif genişletilmiş aralık. */
+    const bl = (px: number) => `blur(${(px * (0.22 + sev * 1.43)).toFixed(2)}px)`;
 
     // ── Zoom crop ──────────────────────────────────────────────────────────
     const scale = 1 / zoom;
@@ -97,6 +111,20 @@ export function useEyeFilter(
     const finalSx = Math.max(0, Math.min(vw - sw, sx0 - panX * pSx));
     const finalSy = Math.max(0, Math.min(vh - sh, sy0 - panY * pSy));
 
+    // ── Temiz kare katmani (bolunmus karsilastirma) ────────────────────────
+    const clean = cleanCanvasRef?.current;
+    if (clean) {
+      const cctx = clean.getContext("2d");
+      if (cctx) {
+        cctx.filter = "none";
+        cctx.globalAlpha = 1;
+        cctx.clearRect(0, 0, clean.width, clean.height);
+        cctx.drawImage(
+          video, finalSx, finalSy, sw, sh, 0, 0, clean.width, clean.height
+        );
+      }
+    }
+
     // ── Reset per-frame CSS/ctx state ──────────────────────────────────────
     canvas.style.filter = "none";
     ctx.filter          = "none";
@@ -111,7 +139,7 @@ export function useEyeFilter(
         break;
 
       case "miyop": {
-        ctx.filter = "blur(7px)";
+        ctx.filter = bl(7);
         ctx.drawImage(video, finalSx, finalSy, sw, sh, 0, 0, w, h);
         const r = Math.min(w, h) * 0.3;
         ctx.save();
@@ -131,7 +159,7 @@ export function useEyeFilter(
         ctx.beginPath();
         ctx.arc(w / 2, h / 2, cr, 0, Math.PI * 2);
         ctx.clip();
-        ctx.filter = "blur(5px)";
+        ctx.filter = bl(5);
         ctx.drawImage(video, finalSx, finalSy, sw, sh, 0, 0, w, h);
         ctx.restore();
         ctx.filter = "none";
@@ -139,7 +167,7 @@ export function useEyeFilter(
       }
 
       case "astigmat": {
-        ctx.filter      = "blur(1.5px)";
+        ctx.filter      = bl(1.5);
         ctx.globalAlpha = 0.28;
         ctx.drawImage(video, finalSx, finalSy, sw, sh, -10, 0, w, h);
         ctx.drawImage(video, finalSx, finalSy, sw, sh,  10, 0, w, h);
@@ -172,7 +200,7 @@ export function useEyeFilter(
         break;
 
       case "katarakt":
-        canvas.style.filter = "blur(2px) brightness(1.35) sepia(0.45) contrast(0.78)";
+        canvas.style.filter = `${bl(2)} brightness(1.35) sepia(0.45) contrast(0.78)`;
         ctx.drawImage(video, finalSx, finalSy, sw, sh, 0, 0, w, h);
         break;
 
@@ -205,7 +233,7 @@ export function useEyeFilter(
       }
 
       case "diyabetik": {
-        canvas.style.filter = "blur(1px)";
+        canvas.style.filter = bl(1);
         ctx.drawImage(video, finalSx, finalSy, sw, sh, 0, 0, w, h);
         if (spotsRef.current.length === 0) {
           spotsRef.current = Array.from({ length: 26 }, () => ({
@@ -258,7 +286,7 @@ export function useEyeFilter(
         ctx.beginPath();
         ctx.rect(0, blurY, w, h - blurY);
         ctx.clip();
-        ctx.filter = "blur(5px)";
+        ctx.filter = bl(5);
         ctx.drawImage(video, finalSx, finalSy, sw, sh, 0, 0, w, h);
         ctx.restore();
         ctx.filter = "none";
@@ -273,7 +301,7 @@ export function useEyeFilter(
         ctx.beginPath();
         ctx.rect(0, 0, w / 2, h);
         ctx.clip();
-        ctx.filter = "blur(2.5px) saturate(0.25)";
+        ctx.filter = `${bl(2.5)} saturate(0.25)`;
         ctx.drawImage(video, finalSx, finalSy, sw, sh, 0, 0, w, h);
         ctx.restore();
         ctx.filter = "none";
@@ -303,7 +331,7 @@ export function useEyeFilter(
           const gsx = Math.max(0, Math.min(vw - sw, finalSx - dx * pSx));
           const gsy = Math.max(0, Math.min(vh - sh, finalSy - dy * pSy));
           ctx.globalAlpha = a;
-          ctx.filter = "blur(1px)";
+          ctx.filter = bl(1);
           ctx.drawImage(video, gsx, gsy, sw, sh, 0, 0, w, h);
         });
         ctx.filter = "none";
@@ -336,7 +364,7 @@ export function useEyeFilter(
 
       case "optikNorit": {
         // Optic neuritis: large central scotoma + colour desaturation
-        canvas.style.filter = "blur(1px) saturate(0.38)";
+        canvas.style.filter = `${bl(1)} saturate(0.38)`;
         ctx.drawImage(video, finalSx, finalSy, sw, sh, 0, 0, w, h);
         const oR = Math.min(w, h) * 0.28;
         const oG = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, oR * 1.35);
@@ -389,7 +417,7 @@ export function useEyeFilter(
 
       case "hipertansif": {
         // Hypertensive retinopathy: overall dimming + red vignette at edges
-        canvas.style.filter = "blur(1.5px) contrast(1.3) brightness(0.83)";
+        canvas.style.filter = `${bl(1.5)} contrast(1.3) brightness(0.83)`;
         ctx.drawImage(video, finalSx, finalSy, sw, sh, 0, 0, w, h);
         const hG = ctx.createRadialGradient(w/2, h/2, h*0.32, w/2, h/2, h*0.82);
         hG.addColorStop(0, "rgba(140,0,0,0)");
@@ -401,7 +429,7 @@ export function useEyeFilter(
 
       case "uveit": {
         // Uveitis: overall haze + red tint + drifting floaters
-        canvas.style.filter = "blur(2px) brightness(0.9) contrast(0.85)";
+        canvas.style.filter = `${bl(2)} brightness(0.9) contrast(0.85)`;
         ctx.drawImage(video, finalSx, finalSy, sw, sh, 0, 0, w, h);
         ctx.fillStyle = "rgba(180,55,55,0.1)";
         ctx.fillRect(0, 0, w, h);
@@ -430,7 +458,7 @@ export function useEyeFilter(
 
       case "leber": {
         // Leber CCA: severe congenital vision loss — shapes barely visible
-        canvas.style.filter = "blur(8px) contrast(0.5) brightness(0.65)";
+        canvas.style.filter = `${bl(8)} contrast(0.5) brightness(0.65)`;
         ctx.drawImage(video, finalSx, finalSy, sw, sh, 0, 0, w, h);
         const lG = ctx.createRadialGradient(w/2, h/2, h*0.04, w/2, h/2, h*0.52);
         lG.addColorStop(0,    "rgba(0,0,0,0)");
@@ -442,6 +470,20 @@ export function useEyeFilter(
         break;
       }
     }
+
+    /* ── Siddet harmanlamasi ───────────────────────────────────────
+       Bulanik olmayan durumlar (renk korlugu, lekeler, tunel) blur
+       olceklemesinden etkilenmiyor. Saglikli kareyi ustune dusuk alfayla
+       cizmek 22 durumun hepsi icin surekli ve monoton bir kadran verir. */
+    if (condition !== "normal" && sev < 1) {
+      ctx.save();
+      ctx.filter = "none";
+      ctx.globalAlpha = (1 - sev) * 0.65;
+      ctx.drawImage(video, finalSx, finalSy, sw, sh, 0, 0, w, h);
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+
   };
 
   // ---------------------------------------------------------------------------
@@ -517,9 +559,23 @@ export function useEyeFilter(
     zoomRef.current = z;
   }, []);
 
+  /** Şiddet 0..1. UI kadranı bunu yüzde olarak gösterir. */
+  const setSeverity = useCallback((v: number) => {
+    severityRef.current = Math.max(0, Math.min(1, v));
+  }, []);
+
+
   useEffect(() => {
     return () => { cancelAnimationFrame(rafRef.current); };
   }, []);
 
-  return { fps, isStreaming, startCamera, stopCamera, setCondition, setZoom };
+  return {
+    fps,
+    isStreaming,
+    startCamera,
+    stopCamera,
+    setCondition,
+    setZoom,
+    setSeverity,
+  };
 }

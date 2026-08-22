@@ -1,0 +1,275 @@
+/* ============================================================================
+   ArgusLens — Tasarım Token Sistemi
+   Sanat yönü: "OPTİK ENSTRÜMAN"
+   Referans: Zeiss kesit diyagramları, Leica gravür, 70'ler bilimsel alet katalogları
+
+   Üç katman:
+     1. PRIMITIVE  — ham değerler, doğrudan kullanılmaz
+     2. SEMANTIC   — role bağlı, bileşenlerin okuduğu katman
+     3. COMPONENT  — bileşene özel türevler
+
+   Kural: JSX/CSS içinde hiçbir renk/boşluk/yarıçap sayısı hardcode edilmez.
+   ============================================================================ */
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   1. PRIMITIVE
+   ───────────────────────────────────────────────────────────────────────────*/
+:root {
+  /* Grafit-zeytin — siyah değil. Anti-reflektif kaplamanın yansıttığı zemin. */
+  --p-graphite-990: oklch(0.09 0.010 172);
+  --p-graphite-950: oklch(0.11 0.012 172);
+  --p-graphite-900: oklch(0.14 0.014 172);
+  --p-graphite-850: oklch(0.17 0.014 170);
+  --p-graphite-800: oklch(0.21 0.013 168);
+  --p-graphite-700: oklch(0.27 0.011 165);
+  --p-graphite-600: oklch(0.36 0.009 162);
+  --p-graphite-500: oklch(0.45 0.008 160);
+
+  /* Kemik — soğuk slate DEĞİL. Sıcak beyaz, jenerikliği kıran ana kaldıraç. */
+  --p-bone-050: oklch(0.97 0.012 85);
+  --p-bone-100: oklch(0.93 0.018 85);
+  --p-bone-300: oklch(0.82 0.016 85);
+  --p-bone-500: oklch(0.68 0.014 85);
+  --p-bone-700: oklch(0.52 0.012 85);
+  --p-bone-800: oklch(0.42 0.010 85);
+
+  /* Sinyal — #00D4FF. Fiziksel gerekçe: AR mercek kaplamasının yansıma rengi.
+     YALNIZCA ölçülmüş canlı veride kullanılır. Dekorda asla. */
+  --p-signal-300: oklch(0.90 0.085 210);
+  --p-signal-500: oklch(0.80 0.128 214);
+  --p-signal-700: oklch(0.62 0.110 216);
+  --p-signal-900: oklch(0.42 0.075 218);
+
+  /* Kaplama hayaleti — AR kaplamanın ikinci yansıması. Nadir, specular. */
+  --p-coating-500: oklch(0.55 0.140 300);
+
+  /* Durum ve ikinci aksan.
+     Amber, cyan ile GÖREV PAYLAŞIR: cyan yalnız ölçülmüş değerde,
+     amber durum ve aktif seçimde. Tek renkli sistemde hiyerarşi zayıftı. */
+  --p-amber-500: oklch(0.755 0.132 68);   /* ~#E8A33D */
+  --p-amber-300: oklch(0.845 0.108 72);
+  --p-warn-500: oklch(0.78 0.160 70);
+  --p-danger-500: oklch(0.62 0.190 25);
+  --p-danger-300: oklch(0.72 0.170 25);
+
+  /* ── Boşluk: Fibonacci. Aletin kadran taksimatı gibi — lineer 4/8 değil. ── */
+  --p-space-1: 0.25rem;   /* 4  */
+  --p-space-2: 0.5rem;    /* 8  */
+  --p-space-3: 0.8125rem; /* 13 */
+  --p-space-4: 1.3125rem; /* 21 */
+  --p-space-5: 2.125rem;  /* 34 */
+  --p-space-6: 3.4375rem; /* 55 */
+  --p-space-7: 5.5625rem; /* 89 */
+  --p-space-8: 9rem;      /* 144 */
+  --p-space-9: 14.5625rem;/* 233 */
+
+  /* ── Tipografi ölçeği: taban 17px, oran 1.333 (perfect fourth) ── */
+  --p-text-3xs: 0.625rem;   /* 10   — kadran etiketi */
+  --p-text-2xs: 0.7188rem;  /* 11.5 — ölçüm birimi   */
+  --p-text-xs: 0.8125rem;   /* 13   — meta           */
+  --p-text-sm: 0.9375rem;   /* 15   — ikincil gövde  */
+  --p-text-base: 1.0625rem; /* 17   — gövde          */
+  --p-text-md: 1.4141rem;   /* 22.6 */
+  --p-text-lg: 1.8848rem;   /* 30.2 */
+  --p-text-xl: 2.5124rem;   /* 40.2 */
+  --p-text-2xl: 3.3490rem;  /* 53.6 */
+
+  /* Display: viewport'a bağlı — poster ölçeği */
+  --p-display-sm: clamp(2.125rem, 4.4vw, 3.5rem);
+  --p-display-md: clamp(2.75rem, 6vw, 5rem);
+  --p-display-lg: clamp(3rem, 8vw, 7rem);
+
+  /* ── Font ağırlıkları: aşırı kontrast. 400/500/600 yok. ── */
+  --p-weight-hair: 200;
+  --p-weight-thin: 300;
+  --p-weight-book: 400;
+  --p-weight-black: 800;
+
+  /* ── Yarıçap: TEK bir değer yok. Optik sistemde plaka kare, diyafram daire. ── */
+  --p-radius-plate: 2px;      /* gravürlü plaka — neredeyse kare */
+  --p-radius-cell: 4px;       /* küçük veri hücresi */
+  --p-radius-barrel: 18px;    /* mercek namlusu ucu */
+  --p-radius-aperture: 9999px;/* diyafram */
+
+  /* ── Hareket: odak kaydırma dili. "fade-in-up" yok. ── */
+  --p-ease-focus: cubic-bezier(0.22, 1, 0.36, 1);
+  --p-ease-barrel: cubic-bezier(0.65, 0, 0.35, 1);
+  --p-ease-shutter: cubic-bezier(0.85, 0, 0.15, 1);
+  --p-dur-snap: 180ms;
+  --p-dur-focus: 620ms;
+  --p-dur-rack: 1100ms;
+
+  /* Odak bulanıklığı — reveal primitifi bunu kullanır */
+  --p-blur-defocus: 14px;
+  --p-blur-haze: 40px;
+
+  /* Katman sırası */
+  --p-z-grain: 60;
+  --p-z-vignette: 55;
+  --p-z-hud: 40;
+  --p-z-content: 10;
+  --p-z-canvas: 1;
+  --p-z-backdrop: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   2. SEMANTIC — koyu (varsayılan). Bileşenler SADECE bu katmanı okur.
+   ───────────────────────────────────────────────────────────────────────────*/
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Yüzeyler */
+  --surface-ground: var(--p-graphite-900);
+  --surface-sunken: var(--p-graphite-990);
+  --surface-plate: var(--p-graphite-850);
+  --surface-barrel: var(--p-graphite-800);
+  --surface-raised: var(--p-graphite-700);
+
+  /* Mürekkep */
+  --ink-title: var(--p-bone-100);
+  --ink-body: var(--p-bone-300);
+  --ink-mute: var(--p-bone-500);
+  --ink-faint: var(--p-bone-700);
+  --ink-inverse: var(--p-graphite-990);
+
+  /* Kenarlar — "hair" gravür çizgisi, "rule" cetvel, "live" canlı veri sınırı */
+  --edge-hair: color-mix(in oklch, var(--p-bone-500) 12%, transparent);
+  --edge-rule: color-mix(in oklch, var(--p-bone-500) 22%, transparent);
+  --edge-live: color-mix(in oklch, var(--p-signal-500) 34%, transparent);
+
+  /* Ölçüm katmanı — cyan yalnız burada */
+  --measure: var(--p-signal-500);
+  --measure-dim: var(--p-signal-700);
+  --measure-glow: color-mix(in oklch, var(--p-signal-500) 18%, transparent);
+  --measure-wash: color-mix(in oklch, var(--p-signal-500) 7%, transparent);
+
+  /* Optik atmosfer */
+  --flare-primary: color-mix(in oklch, var(--p-signal-500) 13%, transparent);
+  --flare-ghost: color-mix(in oklch, var(--p-coating-500) 9%, transparent);
+  --flare-warm: color-mix(in oklch, var(--p-bone-100) 5%, transparent);
+  --vignette: color-mix(in oklch, var(--p-graphite-990) 82%, transparent);
+  --grain-opacity: 0.05;
+
+  /* Durum ve aktif seçim — ikinci aksan */
+  --accent-status: var(--p-amber-500);
+  --accent-status-soft: var(--p-amber-300);
+  --accent-status-edge: color-mix(in oklch, var(--p-amber-500) 46%, transparent);
+  --accent-status-wash: color-mix(in oklch, var(--p-amber-500) 12%, transparent);
+  --accent-status-glow: color-mix(in oklch, var(--p-amber-500) 24%, transparent);
+
+  --state-alert: var(--p-amber-500);
+  --state-critical: var(--p-danger-500);
+
+  /* Seçim / odak halkası */
+  --focus-ring: var(--p-signal-500);
+  --selection-bg: color-mix(in oklch, var(--p-signal-500) 26%, transparent);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   2b. SEMANTIC — açık ("gün ışığı laboratuvarı").
+   Aynı optik dil, ters ışık. Alet kutusundan çıkarılmış, tezgâhta.
+   ───────────────────────────────────────────────────────────────────────────*/
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --surface-ground: oklch(0.95 0.010 85);
+  --surface-sunken: oklch(0.91 0.012 85);
+  --surface-plate: oklch(0.98 0.006 85);
+  --surface-barrel: oklch(0.89 0.012 88);
+  --surface-raised: oklch(1 0 0);
+
+  --ink-title: var(--p-graphite-990);
+  --ink-body: var(--p-graphite-800);
+  --ink-mute: var(--p-graphite-600);
+  --ink-faint: var(--p-graphite-500);
+  --ink-inverse: var(--p-bone-050);
+
+  --edge-hair: color-mix(in oklch, var(--p-graphite-700) 14%, transparent);
+  --edge-rule: color-mix(in oklch, var(--p-graphite-700) 26%, transparent);
+  --edge-live: color-mix(in oklch, var(--p-signal-700) 44%, transparent);
+
+  --measure: var(--p-signal-700);
+  --measure-dim: var(--p-signal-900);
+  --measure-glow: color-mix(in oklch, var(--p-signal-700) 16%, transparent);
+  --measure-wash: color-mix(in oklch, var(--p-signal-700) 6%, transparent);
+
+  --flare-primary: color-mix(in oklch, var(--p-signal-700) 9%, transparent);
+  --flare-ghost: color-mix(in oklch, var(--p-coating-500) 7%, transparent);
+  --flare-warm: color-mix(in oklch, var(--p-bone-300) 22%, transparent);
+  --vignette: color-mix(in oklch, var(--p-graphite-700) 14%, transparent);
+  --grain-opacity: 0.03;
+
+  --accent-status: oklch(0.58 0.150 62);
+  --accent-status-soft: oklch(0.66 0.140 66);
+  --accent-status-edge: color-mix(in oklch, oklch(0.58 0.150 62) 52%, transparent);
+  --accent-status-wash: color-mix(in oklch, oklch(0.58 0.150 62) 12%, transparent);
+  --accent-status-glow: color-mix(in oklch, oklch(0.58 0.150 62) 24%, transparent);
+
+  --state-alert: oklch(0.58 0.150 62);
+  --state-critical: oklch(0.52 0.190 25);
+
+  --focus-ring: var(--p-signal-700);
+  --selection-bg: color-mix(in oklch, var(--p-signal-700) 20%, transparent);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   3. COMPONENT — bileşene özel türevler
+   ───────────────────────────────────────────────────────────────────────────*/
+:root {
+  /* Plaka (kart yerine geçer — "rounded-2xl glassmorphism card" değil) */
+  --plate-bg: linear-gradient(
+    177deg,
+    color-mix(in oklch, var(--surface-plate) 92%, transparent),
+    color-mix(in oklch, var(--surface-ground) 96%, transparent)
+  );
+  --plate-edge: var(--edge-hair);
+  --plate-edge-hover: var(--edge-live);
+  --plate-radius: var(--p-radius-plate);
+  --plate-pad: var(--p-space-5);
+  --plate-shadow: 0 1px 0 0 color-mix(in oklch, var(--p-bone-100) 5%, transparent) inset;
+  --plate-shadow-hover:
+    0 1px 0 0 color-mix(in oklch, var(--p-bone-100) 9%, transparent) inset,
+    0 var(--p-space-3) var(--p-space-6) calc(-1 * var(--p-space-3))
+      color-mix(in oklch, var(--p-graphite-990) 70%, transparent);
+
+  /* Namlu (hero / video çerçevesi) */
+  --barrel-radius: var(--p-radius-barrel) var(--p-radius-barrel)
+                   var(--p-radius-plate) var(--p-radius-plate);
+  --barrel-edge: var(--edge-rule);
+
+  /* Diyafram (avatar, durum noktası, reticle) */
+  --aperture-radius: var(--p-radius-aperture);
+  --aperture-edge: var(--edge-live);
+
+  /* Buton — birincil "gravürlü plaka", ikincil "boş çerçeve" */
+  --btn-pad-y: var(--p-space-3);
+  --btn-pad-x: var(--p-space-5);
+  --btn-radius: var(--p-radius-cell);
+  --btn-primary-bg: var(--p-bone-100);
+  --btn-primary-ink: var(--p-graphite-990);
+  --btn-primary-bg-hover: var(--p-bone-050);
+  --btn-ghost-edge: var(--edge-rule);
+  --btn-ghost-ink: var(--ink-body);
+  --btn-ghost-edge-hover: var(--edge-live);
+
+  /* Ölçüm hücresi (FPS / güven % / vital) */
+  --cell-bg: var(--measure-wash);
+  --cell-edge: var(--edge-live);
+  --cell-radius: var(--p-radius-cell);
+  --cell-ink: var(--measure);
+  --cell-pad-y: var(--p-space-1);
+  --cell-pad-x: var(--p-space-2);
+
+  /* Bölüm ritmi */
+  --section-pad-y: clamp(var(--p-space-6), 9vh, var(--p-space-8));
+  --section-gutter: clamp(var(--p-space-4), 5vw, var(--p-space-7));
+  --content-max: 78rem;
+  --prose-max: 34rem;
+
+  /* HUD çerçevesi (video üstü ölçüm katmanı) */
+  --hud-tick: var(--edge-live);
+  --hud-ink: var(--measure);
+  --hud-label-size: var(--p-text-3xs);
+  --hud-track: 0.22em;
+}

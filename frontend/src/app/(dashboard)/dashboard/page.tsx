@@ -1,14 +1,12 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import React from "react";
-import CinematicSection from "@/components/ui/CinematicSection";
-
-export default function CommandCenterPage() {
-  // Negative margin cancels the layout's main padding so the cinematic
-  // panels run edge-to-edge as the landing experience.
-  return (
-    <div className="-m-6">
-      <CinematicSection />
-    </div>
-  );
+/**
+ * `/dashboard` tanıtım ekranı kaldırıldı.
+ *
+ * Konsola giren operatörün ilk gördüğü şey pazarlama panelleri değil,
+ * çalışan kamera akışı olmalı. Rota canlı görüntüye yönlenir; eski
+ * sinematik paneller landing sayfasında zaten anlatılıyor.
+ */
+export default function DashboardIndex() {
+  redirect("/dashboard/vision");
 }

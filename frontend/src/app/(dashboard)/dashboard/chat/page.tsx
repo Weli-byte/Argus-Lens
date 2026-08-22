@@ -47,8 +47,10 @@ interface MediaFile {
   mime_type: string;
   preview: string;
 }
+import { useLocale, pct } from "@/lib/i18n";
 
 export default function AIChatPage() {
+  const { t, locale } = useLocale();
   const { currentTelemetry } = useVitalStream();
   
   // State variables
@@ -64,7 +66,7 @@ export default function AIChatPage() {
   const [thinkingEnabled, setThinkingEnabled] = useState(false);
   
   // Collapsed thought tracking (by message ID)
-  const [collapsedThoughts, setCollapsedThoughts] = useState<Dict<string, boolean>>({});
+  const [collapsedThoughts, setCollapsedThoughts] = useState<Record<string, boolean>>({});
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -83,12 +85,13 @@ export default function AIChatPage() {
         {
           id: "welcome",
           sender: "assistant",
-          text: "Merhaba! Ben ArgusLens Biyonik Lens klinik asistanıyım. Sağlığınız, anlık vital değerleriniz veya tıbbi sorularınız hakkında benimle konuşabilirsiniz. Size nasıl yardımcı olabilirim?",
+          text: t("Merhaba! Ben ArgusLens Biyonik Lens klinik asistanıyım. Sağlığınız, anlık vital değerleriniz veya tıbbi sorularınız hakkında benimle konuşabilirsiniz. Size nasıl yardımcı olabilirim?"),
           timestamp: new Date().toLocaleTimeString("tr-TR", { hour: '2-digit', minute: '2-digit' })
         }
       ]);
     }
-  }, [currentSessionId]);
+    // `t` bağımlılıkta: dil değişince karşılama mesajı da yeni dilde yazılır.
+  }, [currentSessionId, t]);
 
   // Auto-scroll to bottom of chat
   useEffect(() => {
@@ -482,9 +485,9 @@ export default function AIChatPage() {
   };
 
   const quickPrompts = [
-    { label: "🔍 Vital Durumumu Yorumla", text: "Şu anki vital değerlerimi analiz edip bana genel sağlık raporumu açıklar mısın?" },
-    { label: "⚠️ NEWS2 Risk Raporu", text: "NEWS2 skorum kaç ve bu tıbbi olarak ne anlama geliyor? Risk altında mıyım?" },
-    { label: "💡 Stres & Göz Basıncı Tavsiyesi", text: "Stres seviyem ve göz içi basıncım (IOP) ne durumda? Bunları kontrol altında tutmak için ne önerirsin?" }
+    { label: t("🔍 Vital Durumumu Yorumla"), text: t("Şu anki vital değerlerimi analiz edip bana genel sağlık raporumu açıklar mısın?") },
+    { label: t("⚠️ NEWS2 Risk Raporu"), text: t("NEWS2 skorum kaç ve bu tıbbi olarak ne anlama geliyor? Risk altında mıyım?") },
+    { label: t("💡 Stres & Göz Basıncı Tavsiyesi"), text: t("Stres seviyem ve göz içi basıncım (IOP) ne durumda? Bunları kontrol altında tutmak için ne önerirsin?") }
   ];
 
   const currentVitals = currentTelemetry?.vitals;
@@ -501,18 +504,14 @@ export default function AIChatPage() {
             onClick={handleCreateNewChat}
             className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border border-[rgba(0,212,255,0.3)] text-cyan-400 text-xs font-bold tracking-wide cursor-pointer transition-all duration-300 hover:bg-cyan-500/10 hover:shadow-[0_0_16px_rgba(0,212,255,0.15)]"
           >
-            <Plus className="size-4" />
-            YENİ SOHBET
-          </button>
-          <p className="text-xs text-slate-500 uppercase tracking-widest mt-4 px-1">
-            Geçmiş
-          </p>
+            <Plus className="size-4" />{t("YENİ SOHBET")}</button>
+          <p className="text-xs text-slate-500 uppercase tracking-widest mt-4 px-1">{t("Geçmiş")}</p>
         </div>
 
         {/* Sessions list */}
         <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-1">
           {sessions.length === 0 ? (
-            <p className="text-[10px] text-slate-600 text-center py-8">Kayıtlı sohbet bulunamadı.</p>
+            <p className="text-[10px] text-slate-600 text-center py-8">{t("Kayıtlı sohbet bulunamadı.")}</p>
           ) : (
             sessions.map((s) => (
               <div
@@ -531,7 +530,7 @@ export default function AIChatPage() {
                 <button
                   onClick={(e) => handleDeleteSession(s.session_id, e)}
                   className="opacity-0 group-hover:opacity-100 hover:text-red-400 p-0.5 rounded cursor-pointer transition-all duration-300"
-                  title="Sil"
+                  title={t("Sil")}
                 >
                   <Trash2 className="size-3.5" />
                 </button>
@@ -551,22 +550,19 @@ export default function AIChatPage() {
               <Bot className="size-8 text-cyan-400" strokeWidth={1.75} />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-white tracking-wide">ARGUSLENS KLİNİK ASISTAN</h2>
-              <p className="text-xs text-cyan-400">GPT-4o Medikal Zeka</p>
+              <h2 className="text-sm font-bold text-white tracking-wide">{t("ARGUSLENS KLİNİK ASISTAN")}</h2>
+              <p className="text-xs text-cyan-400">{t("GPT-4o Medikal Zeka")}</p>
             </div>
           </div>
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-[10px] font-bold tracking-widest text-cyan-400 shadow-[0_0_12px_rgba(0,212,255,0.15)]">
-            <span className="size-1.5 rounded-full bg-cyan-400 animate-pulse" />
-            ONLINE
-          </span>
+            <span className="size-1.5 rounded-full bg-cyan-400 animate-pulse" />{t("ONLINE")}</span>
         </div>
 
         {/* Disclaimer warning */}
         <div className="bg-amber-500/5 border-l-2 border-amber-500 px-4 py-2.5 flex items-start gap-2 text-[10px] text-amber-500/90">
           <Info className="size-3.5 shrink-0 mt-0.5" />
           <span>
-            <strong>Klinik Triage Uyarısı:</strong> Yapay zeka asistanının tıbbi önerileri teşhis amacı taşımaz. Acil durumlarda 112 Acil Yardım hattını arayınız.
-          </span>
+            <strong>{t("Klinik Triage Uyarısı:")}</strong>{t("Yapay zeka asistanının tıbbi önerileri teşhis amacı taşımaz. Acil durumlarda 112 Acil Yardım hattını arayınız.")}</span>
         </div>
 
         {/* Message history flow with visual thought formatting */}
@@ -656,9 +652,7 @@ export default function AIChatPage() {
                       style={{ animation: `typingDot 1.2s ease-in-out ${i * 0.2}s infinite` }}
                     />
                   ))}
-                </span>
-                Klinik tıp veri tabanları ve vital veriler inceleniyor...
-              </div>
+                </span>{t("Klinik tıp veri tabanları ve vital veriler inceleniyor...")}</div>
             </div>
           )}
           <div ref={messagesEndRef} />
@@ -671,7 +665,7 @@ export default function AIChatPage() {
               {selectedMedia.type === "image" ? (
                 <img src={selectedMedia.preview} alt="Upload Preview" className="size-full object-cover" />
               ) : (
-                <div className="size-full flex items-center justify-center text-[8px] font-mono text-slate-500">VIDEO</div>
+                <div className="size-full flex items-center justify-center text-[8px] font-mono text-slate-500">{t("VIDEO")}</div>
               )}
               <button
                 onClick={() => setSelectedMedia(null)}
@@ -680,7 +674,7 @@ export default function AIChatPage() {
                 <X className="size-2.5" />
               </button>
             </div>
-            <span className="text-[10px] font-mono text-slate-400">Dosya yükleme sırasına eklendi</span>
+            <span className="text-[10px] font-mono text-slate-400">{t("Dosya yükleme sırasına eklendi")}</span>
           </div>
         )}
 
@@ -708,7 +702,7 @@ export default function AIChatPage() {
               className="rounded border-[#1E293B] text-purple-600 focus:ring-purple-500 bg-[#080B0F]"
             />
             <span className="flex items-center gap-1 text-purple-400">
-              <Brain className="size-3.5" /> Derin Düşünme (CoT)
+              <Brain className="size-3.5" /> {t("Derin Düşünme (CoT)")}
             </span>
           </label>
 
@@ -720,8 +714,7 @@ export default function AIChatPage() {
               className="rounded border-[#1E293B] text-cyan-500 focus:ring-cyan-400 bg-[#080B0F]"
             />
             <span className="flex items-center gap-1 text-cyan-400">
-              <Search className="size-3.5" /> Canlı Web Araştırması
-            </span>
+              <Search className="size-3.5" />{t("Canlı Web Araştırması")}</span>
           </label>
         </div>
 
@@ -740,7 +733,7 @@ export default function AIChatPage() {
               onClick={() => fileInputRef.current?.click()}
               disabled={loading}
               className="text-slate-500 hover:text-cyan-400 cursor-pointer disabled:opacity-50 transition-colors duration-300 shrink-0"
-              title="Fotoğraf/Video Yükle"
+              title={t("Fotoğraf/Video Yükle")}
             >
               <Paperclip className="size-4" />
             </button>
@@ -750,7 +743,7 @@ export default function AIChatPage() {
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSendMessage(inputText)}
-              placeholder="Klinik hekime sorunuzu yazın..."
+              placeholder={t("Klinik hekime sorunuzu yazın...")}
               disabled={loading}
               className="flex-1 bg-transparent text-xs text-slate-100 placeholder-slate-500 focus:outline-none disabled:opacity-50"
             />
@@ -772,53 +765,49 @@ export default function AIChatPage() {
         {/* Connection health */}
         <div className="card-lift border border-[rgba(0,212,255,0.12)] bg-gradient-to-br from-[#0D1117] to-[#111827] rounded-2xl p-4 flex flex-col justify-between shrink-0">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Canlı Veri</span>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">{t("Canlı Veri")}</span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-[9px] font-bold tracking-widest text-cyan-400">
-              <span className="size-1.5 rounded-full bg-cyan-400 animate-pulse"></span> ONLINE
-            </span>
+              <span className="size-1.5 rounded-full bg-cyan-400 animate-pulse"></span>{t("ONLINE")}</span>
           </div>
-          <div className="text-[10px] text-slate-500 mt-3 rounded-lg bg-slate-800/30 px-3 py-2">
-            İletişim Kanalı: <span className="text-slate-300">FastAPI WS Link (Live)</span>
+          <div className="text-[10px] text-slate-500 mt-3 rounded-lg bg-slate-800/30 px-3 py-2">{t("İletişim Kanalı:")}<span className="text-slate-300">{t("FastAPI WS Link (Live)")}</span>
           </div>
         </div>
 
         {/* Live Vitals metrics checklist */}
         <div className="card-lift border border-[rgba(0,212,255,0.12)] bg-gradient-to-b from-[#0D1117] to-[#111827] rounded-2xl p-4 flex-1 flex flex-col gap-2 overflow-y-auto">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest block border-b border-[rgba(255,255,255,0.06)] pb-2">
-            Anlık Klinik Bağlam
-          </span>
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest block border-b border-[rgba(255,255,255,0.06)] pb-2">{t("Anlık Klinik Bağlam")}</span>
 
           {currentVitals ? (
             <div className="space-y-2.5 py-1 text-[11px] font-mono">
               <div className="flex items-center justify-between border-b border-[#1E293B]/40 pb-1">
-                <span className="text-slate-500 flex items-center gap-1"><Heart className="size-3 text-red-500" /> Nabız</span>
+                <span className="text-slate-500 flex items-center gap-1"><Heart className="size-3 text-red-500" />{t("Nabız")}</span>
                 <span className="text-red-400 font-bold">{currentVitals.heart_rate} bpm</span>
               </div>
               
               <div className="flex items-center justify-between border-b border-[#1E293B]/40 pb-1">
-                <span className="text-slate-500 flex items-center gap-1"><Activity className="size-3 text-yellow-500" /> Tansiyon</span>
+                <span className="text-slate-500 flex items-center gap-1"><Activity className="size-3 text-yellow-500" />{t("Tansiyon")}</span>
                 <span className="text-yellow-400 font-bold">
                   {Math.round(currentVitals.systolic_bp)}/{Math.round(currentVitals.diastolic_bp)}
                 </span>
               </div>
 
               <div className="flex items-center justify-between border-b border-[#1E293B]/40 pb-1">
-                <span className="text-slate-500 flex items-center gap-1"><Droplet className="size-3 text-cyan-400" /> Oksijen (SpO2)</span>
-                <span className="text-cyan-400 font-bold">%{currentVitals.spo2}</span>
+                <span className="text-slate-500 flex items-center gap-1"><Droplet className="size-3 text-cyan-400" /> {t("Oksijen (SpO2)")}</span>
+                <span className="text-cyan-400 font-bold">{pct(currentVitals.spo2, locale)}</span>
               </div>
 
               <div className="flex items-center justify-between border-b border-[#1E293B]/40 pb-1">
-                <span className="text-slate-500 flex items-center gap-1"><Thermometer className="size-3 text-amber-500" /> Sıcaklık</span>
+                <span className="text-slate-500 flex items-center gap-1"><Thermometer className="size-3 text-amber-500" />{t("Sıcaklık")}</span>
                 <span className="text-amber-500 font-bold">{currentVitals.temperature} °C</span>
               </div>
 
               <div className="flex items-center justify-between border-b border-[#1E293B]/40 pb-1">
-                <span className="text-slate-500 flex items-center gap-1"><Gauge className="size-3 text-[#00D4FF]" /> Göz Basıncı (IOP)</span>
+                <span className="text-slate-500 flex items-center gap-1"><Gauge className="size-3 text-[#00D4FF]" /> {t("Göz Basıncı (IOP)")}</span>
                 <span className="text-[#00D4FF] font-bold">{currentVitals.eye_pressure} mmHg</span>
               </div>
 
               <div className="flex items-center justify-between border-b border-[#1E293B]/40 pb-1">
-                <span className="text-slate-500 flex items-center gap-1"><Flame className="size-3 text-purple-400" /> Stres (Kortizol)</span>
+                <span className="text-slate-500 flex items-center gap-1"><Flame className="size-3 text-purple-400" /> {t("Stres (Kortizol)")}</span>
                 <span className="text-purple-400 font-bold">{currentVitals.stress_level} mcg/dL</span>
               </div>
               
@@ -831,23 +820,20 @@ export default function AIChatPage() {
                     : "bg-green-500/10 border-green-500/20 text-green-400"
               }`}>
                 <div className="flex justify-between font-bold text-[10px]">
-                  <span>NEWS2 SCORE</span>
-                  <span>{news2?.score ?? 0} ({news2?.status ?? "NORMAL"})</span>
+                  <span>{t("NEWS2 SCORE")}</span>
+                  <span>{news2?.score ?? 0} ({t(news2?.status ?? "NORMAL")})</span>
                 </div>
                 <div className="text-[8px] text-slate-400 uppercase">
-                  AI Risk Seviyesi: {analysis?.risk_score ? `%${(analysis.risk_score * 100).toFixed(0)}` : "%0"}
+                  {t("AI Risk Seviyesi:")}{" "}
+                  {pct(((analysis?.risk_score ?? 0) * 100).toFixed(0), locale)}
                 </div>
               </div>
 
-              <p className="text-[9px] text-slate-500 leading-normal bg-[#080B0F] p-2 rounded border border-[#1E293B] mt-2">
-                * Asistan, mesajlarınızı yanıtlarken yukarıda yer alan telemetri verilerini tıbbi karar mekanizmalarına RAG ile dahil eder.
-              </p>
+              <p className="text-[9px] text-slate-500 leading-normal bg-[#080B0F] p-2 rounded border border-[#1E293B] mt-2">{t("* Asistan, mesajlarınızı yanıtlarken yukarıda yer alan telemetri verilerini tıbbi karar mekanizmalarına RAG ile dahil eder.")}</p>
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-[11px] py-10 gap-3">
-              <span className="size-10 rounded-full border-2 border-cyan-500/50 border-t-transparent animate-spin opacity-50" />
-              Sinyal bekleniyor...
-            </div>
+              <span className="size-10 rounded-full border-2 border-cyan-500/50 border-t-transparent animate-spin opacity-50" />{t("Sinyal bekleniyor...")}</div>
           )}
 
         </div>

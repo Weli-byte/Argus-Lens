@@ -16,7 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const COMMANDS = [
-  { href: "/dashboard",           label: "Komuta Merkezi",  hint: "Sistem izleme paneli",       icon: LayoutDashboard },
+  { href: "/dashboard/vision",    label: "Komuta Merkezi",  hint: "Canlı kamera akışı",         icon: LayoutDashboard },
   { href: "/dashboard/vision",    label: "Kamera",          hint: "Canlı görüntü & simülasyon", icon: Eye             },
   { href: "/dashboard/detection", label: "Nesne Tespiti",   hint: "AI görsel analiz",           icon: ScanSearch      },
   { href: "/dashboard/vitals",    label: "Vital Değerler",  hint: "Sağlık telemetrisi",         icon: Activity        },

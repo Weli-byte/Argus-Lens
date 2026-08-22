@@ -2,21 +2,19 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import { Bell, User, ChevronDown } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
 import { useTemporalStore } from "@/store/temporal-store";
-import LiveIndicator from "@/components/ui/LiveIndicator";
-import ConnectionHealth from "@/components/ui/ConnectionHealth";
-import { useWSStore } from "@/store/ws-store";
+import { useT } from "@/lib/i18n";
+import LocaleSwitch from "./LocaleSwitch";
 
 export default function TopBar() {
+  const t = useT();
   const [clock, setClock] = useState("");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const anomalies = useTemporalStore((s) => s.anomalies);
-  const connectionState = useWSStore((s) => s.connectionState);
 
   const alertCount = useMemo(
     () => anomalies.filter((a) => a.severity === "HIGH" || a.severity === "CRITICAL").length,
@@ -41,34 +39,30 @@ export default function TopBar() {
   }, []);
 
   return (
-    <header className="flex items-center gap-4 px-5 py-2.5 bg-[#080B0F] border-b border-[rgba(255,255,255,0.06)] min-h-[57px] shrink-0">
-      {/* Clock */}
-      <div className="font-mono text-xs text-slate-300 tabular-nums tracking-wider min-w-[80px]">
-        {clock}
-      </div>
-
-      {/* Connection indicator */}
-      <ConnectionHealth className="py-1.5" />
+    <header className="topbar">
+      {/* Saat — ölçülmüş değer değil, kadran bilgisi */}
+      <div className="topbar-clock">{clock}</div>
 
       <div className="flex-1" />
 
-      {/* Live indicator */}
-      <LiveIndicator
-        isLive={connectionState === "connected"}
-        label="CANLI"
-        className="rounded-full px-3"
-      />
+      {/* Dil anahtarı — seçim tüm arayüzde geçerli, localStorage'da kalıcı */}
+      <LocaleSwitch />
 
-      {/* Alert bell */}
-      <button className="relative p-1.5 rounded-lg hover:bg-slate-800 transition-colors">
+      {/* Uyarı — kırmızı YALNIZ gerçek tehlike sayısı varken */}
+      <button
+        className="topbar-btn"
+        aria-label={
+          alertCount > 0
+            ? `${alertCount} ${t("kritik uyarı")}`
+            : t("Uyarı yok")
+        }
+      >
         <Bell
-          className={cn(
-            "size-4",
-            alertCount > 0 ? "text-red-400" : "text-slate-500"
-          )}
+          className="size-4"
+          style={alertCount > 0 ? { color: "var(--state-critical)" } : undefined}
         />
         {alertCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 size-4 rounded-full bg-red-500 text-[9px] font-bold text-white flex items-center justify-center">
+          <span className="topbar-badge">
             {alertCount > 9 ? "9+" : alertCount}
           </span>
         )}
@@ -78,15 +72,16 @@ export default function TopBar() {
       <div className="relative">
         <button
           onClick={() => setUserMenuOpen((v) => !v)}
-          className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+          className="topbar-user"
+          aria-expanded={userMenuOpen}
         >
-          <div className="size-7 rounded-full bg-cyan-500/15 border-2 border-cyan-500/50 flex items-center justify-center">
-            <User className="size-3.5 text-cyan-400" />
-          </div>
-          <span className="text-xs font-semibold text-slate-200">
-            {user?.username ?? "operator"}
+          <span className="rail-avatar !size-6">
+            <User className="size-3.5" strokeWidth={1.7} />
           </span>
-          <ChevronDown className="size-3 text-slate-500" />
+          <span className="max-w-[13rem] truncate">
+            {user?.username ?? t("operatör")}
+          </span>
+          <ChevronDown className="size-3 text-[var(--ink-faint)]" />
         </button>
 
         {userMenuOpen && (
@@ -95,21 +90,22 @@ export default function TopBar() {
               className="fixed inset-0 z-10"
               onClick={() => setUserMenuOpen(false)}
             />
-            <div className="absolute right-0 top-full mt-1 z-20 w-48 rounded-lg border border-[#1E293B] bg-[#0D1117] shadow-xl overflow-hidden">
-              <div className="px-3 py-2 border-b border-[#1E293B]">
-                <p className="text-xs font-mono text-slate-300">
-                  {user?.username ?? "operator"}
+            <div className="auth-step absolute right-0 top-full z-20 mt-[var(--p-space-2)] w-56 overflow-hidden rounded-[var(--p-radius-plate)] border border-[var(--edge-hair)] bg-[color-mix(in_oklch,var(--p-graphite-990)_94%,transparent)] shadow-[var(--plate-shadow-hover)]">
+              <div className="border-b border-[var(--edge-hair)] px-[var(--p-space-3)] py-[var(--p-space-3)]">
+                <p className="truncate text-[var(--p-text-xs)] text-[var(--ink-title)]">
+                  {user?.username ?? t("operatör")}
                 </p>
-                <p className="text-[10px] text-slate-500">{user?.role ?? "operator"}</p>
+                <p className="t-dial mt-[2px]">{user?.role ?? "operator"}</p>
               </div>
               <button
                 onClick={() => {
                   setUserMenuOpen(false);
                   logout();
                 }}
-                className="w-full px-3 py-2 text-left text-xs text-red-400 hover:bg-red-500/5 transition-colors"
+                className="w-full px-[var(--p-space-3)] py-[var(--p-space-3)] text-left text-[var(--p-text-xs)] transition-colors hover:bg-[color-mix(in_oklch,var(--state-critical)_10%,transparent)]"
+                style={{ color: "var(--state-critical)" }}
               >
-                Sign Out
+                {t("Oturumu kapat")}
               </button>
             </div>
           </>

@@ -118,6 +118,56 @@ const api = {
     return res.data;
   },
 
+  /** E-posta veya telefon ile hesap açar; başarılıysa doğrudan oturum açar. */
+  async register(payload: {
+    full_name?: string;
+    email?: string;
+    phone?: string;
+    password: string;
+  }): Promise<AuthTokens> {
+    const res = await http.post<AuthTokens>("/api/v1/auth/register", payload);
+    return res.data;
+  },
+
+  /** Telefona tek kullanımlık kod ister. */
+  async requestOtp(phone: string): Promise<{
+    phone: string;
+    sent: boolean;
+    dev_code?: string | null;
+  }> {
+    const res = await http.post("/api/v1/auth/otp/request", { phone });
+    return res.data;
+  },
+
+  /** Kodu doğrular; hesap yoksa telefonla açar. */
+  async verifyOtp(phone: string, code: string): Promise<AuthTokens> {
+    const res = await http.post<AuthTokens>("/api/v1/auth/otp/verify", {
+      phone,
+      code,
+    });
+    return res.data;
+  },
+
+  /** Hangi sosyal sağlayıcıların yapılandırıldığını sorar. */
+  async getAuthProviders(): Promise<{
+    google: { enabled: boolean; client_id: string };
+    apple: { enabled: boolean; client_id: string };
+  }> {
+    const res = await http.get("/api/v1/auth/providers");
+    return res.data;
+  },
+
+  /** Google/Apple kimlik token'ını sunucuya doğrulatır. */
+  async oauthLogin(
+    provider: "google" | "apple",
+    idToken: string
+  ): Promise<AuthTokens> {
+    const res = await http.post<AuthTokens>(`/api/v1/auth/oauth/${provider}`, {
+      id_token: idToken,
+    });
+    return res.data;
+  },
+
   async refreshToken(refreshToken: string): Promise<AuthTokens> {
     const res = await http.post<AuthTokens>("/api/v1/auth/refresh", {
       refresh_token: refreshToken,

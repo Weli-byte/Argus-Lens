@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from monitoring.log_pipeline import logger
 from orchestration.gpu_manager import GPUManager
 from security.jwt_handler import SecurityHandler
+from core import user_store
 from core.auth_manager import auth_manager
 
 router = APIRouter()
@@ -59,12 +60,20 @@ class RefreshRequest(BaseModel):
 
 @router.post("/auth/token", response_model=TokenResponse, tags=["auth"])
 async def login(request: LoginRequest) -> TokenResponse:
-    """POST /auth/token — exchange credentials for JWT tokens."""
-    user = auth_manager.verify_user(request.username, request.password)
+    """POST /auth/token — exchange credentials for JWT tokens.
+
+    NOT: Bu rota `api/auth.py` içindeki eşiyle aynı yolu paylaşıyor ve
+    router sırası nedeniyle ÖNCE bu eşleşiyor. Kayıtlı kullanıcılar da
+    buradan geçebilmeli; aksi hâlde /auth/register ile açılan hesaplar
+    giriş yapamıyor.
+    """
+    user = user_store.authenticate(request.username, request.password)
+    if not user:
+        user = auth_manager.verify_user(request.username, request.password)
     if not user:
         raise HTTPException(
             status_code=401,
-            detail="Incorrect username or password",
+            detail="Kullanıcı adı veya parola hatalı.",
             headers={"WWW-Authenticate": "Bearer"},
         )
     payload = {"sub": user["username"], "role": user["role"], "permissions": user["permissions"]}

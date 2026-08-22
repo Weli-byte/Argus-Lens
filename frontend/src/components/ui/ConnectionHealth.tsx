@@ -24,7 +24,7 @@ const stateConfig: Record<
   },
   connected: {
     label: "Live",
-    color: "text-cyan-400",
+    color: "text-[var(--accent-status-soft)]",
     icon: Wifi,
   },
   reconnecting: {
@@ -70,7 +70,7 @@ const ConnectionHealth = React.memo(function ConnectionHealth({
     latency === null
       ? "text-slate-500"
       : latency < 50
-        ? "text-cyan-400"
+        ? "text-[var(--accent-status-soft)]"
         : latency < 150
           ? "text-amber-400"
           : "text-red-400";
@@ -110,7 +110,7 @@ const ConnectionHealth = React.memo(function ConnectionHealth({
       {(connectionState === "disconnected" || connectionState === "error") && (
         <button
           onClick={handleReconnect}
-          className="shrink-0 flex items-center gap-1 text-[10px] font-mono text-cyan-500 hover:text-cyan-300 transition-colors px-2 py-1 rounded border border-cyan-500/30 hover:border-cyan-400/50"
+          className="shrink-0 flex items-center gap-1 text-[var(--p-text-3xs)] font-mono text-[var(--ink-mute)] hover:text-[var(--ink-title)] transition-colors px-2 py-1 rounded border border-[var(--edge-hair)] hover:border-[var(--edge-rule)]"
         >
           <RefreshCw className="size-2.5" />
           Reconnect

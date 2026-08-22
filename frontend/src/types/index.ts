@@ -214,6 +214,23 @@ export interface AuthTokens {
   refresh_token: string;
   expires_in?: number;
   token_type?: string;
+  user?: AuthUser;
+}
+
+/** /auth/* uçlarının döndürdüğü kullanıcı özeti. */
+export interface AuthUser {
+  username: string;
+  role: string;
+  permissions?: string[];
+  full_name?: string;
+  email?: string;
+  phone?: string;
+  providers?: string[];
+}
+
+export interface AuthProviders {
+  google: boolean;
+  apple: boolean;
 }
 
 // ---------------------------------------------------------------------------

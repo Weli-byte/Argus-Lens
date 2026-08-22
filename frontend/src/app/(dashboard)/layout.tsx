@@ -40,9 +40,11 @@ export default function DashboardLayout({
   if (!hydrated || !isAuthenticated) return null;
 
   return (
-    <div className="relative flex h-full overflow-hidden">
-      {/* Ambient blueprint grid */}
-      <div aria-hidden className="ambient-grid pointer-events-none fixed inset-0 z-0" />
+    <div className="console-shell relative flex h-full overflow-hidden">
+      {/* Gravürlü alet plakası: yatay taksimat + tek yönlü kaplama parlaması.
+          Kare blueprint grid kaldırıldı — jenerik dashboard kalıbıydı. */}
+      <div aria-hidden className="console-rules" />
+      <div aria-hidden className="console-flare" />
 
       <Sidebar />
       <div className="relative z-10 flex flex-col flex-1 min-w-0 overflow-hidden">

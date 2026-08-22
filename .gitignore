@@ -21,3 +21,27 @@ node_modules/
 .next/
 next-env.d.ts
 
+
+# Kullanıcı deposu — parola hash'leri içerir
+data/users.json
+
+# Ortam degiskenleri - istemci kimlikleri ve anahtarlar
+.env
+
+# Başıboş model ağırlıkları. model_cache/ HARİÇ: orada eğitilmiş LoRA
+# adaptörü duruyor ve yeniden üretilemez.
+*.pt
+*.pth
+*.onnx
+*.safetensors
+!model_cache/**
+
+# Çalışma zamanı çıktıları
+backend.log
+backend.err.log
+tsconfig.tsbuildinfo
+frontend/tsconfig.tsbuildinfo
+
+# İşletim sistemi
+.DS_Store
+Thumbs.db

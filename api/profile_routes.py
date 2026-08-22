@@ -28,6 +28,9 @@ class ProfileUpdate(BaseModel):
     iop_calibration: float
     glucose_calibration: float
     daily_water_intake: Optional[int] = 0
+    # Hastane idari kaydi: kimlik, sigorta, acil yakini, hekim, yasam tarzi.
+    # Tek JSON alani -> semaya her yeni alan icin sutun eklemek gerekmiyor.
+    admin_record: Optional[dict] = None
 
 class WaterUpdate(BaseModel):
     amount: int
@@ -56,6 +59,24 @@ async def get_fallback_profile() -> dict:
         "iop_calibration": 15.0,
         "glucose_calibration": 1.0,
         "daily_water_intake": 1250,
+        "admin_record": {
+            "protocol_no": "ARG-2026-004182",
+            "full_name": "",
+            "birth_date": "",
+            "phone": "",
+            "insurance_provider": "SGK",
+            "insurance_no": "",
+            "emergency_name": "",
+            "emergency_relation": "",
+            "emergency_phone": "",
+            "primary_physician": "Dr. Canan Dağdeviren",
+            "clinic": "Kardiyoloji",
+            "smoking": "Hiç kullanmadı",
+            "alcohol": "Nadiren",
+            "organ_donor": False,
+            "family_history": ["Hipertansiyon (baba)", "Tip 2 diyabet (anne)"],
+            "vaccinations": ["Hepatit B (3 doz)", "Tetanoz (2024)"]
+        },
         "visit_history": [
             {"date": "2026-06-12", "dept": "Kardiyoloji", "doctor": "Dr. Canan Dağdeviren", "diagnosis": "Esansiyel Hipertansiyon (Kontrol)"},
             {"date": "2026-05-18", "dept": "Göz Hastalıkları", "doctor": "Dr. Mehmet Öz", "diagnosis": "Glokom Şüphesi / IOP Takibi"},
@@ -139,6 +160,8 @@ async def update_profile(update_data: ProfileUpdate, db: AsyncSession = Depends(
         profile.chronic_diseases = update_data.chronic_diseases
         profile.allergies = update_data.allergies
         profile.active_medications = update_data.active_medications
+        if update_data.admin_record is not None and hasattr(profile, "admin_record"):
+            profile.admin_record = update_data.admin_record
         profile.iop_calibration = update_data.iop_calibration
         profile.glucose_calibration = update_data.glucose_calibration
         if update_data.daily_water_intake is not None:
@@ -160,6 +183,10 @@ async def update_profile(update_data: ProfileUpdate, db: AsyncSession = Depends(
         fallback["active_medications"] = update_data.active_medications
         fallback["iop_calibration"] = update_data.iop_calibration
         fallback["glucose_calibration"] = update_data.glucose_calibration
+        if update_data.admin_record is not None:
+            # Yedek dal bu alani yazmiyordu; hastane kunyesi her kayitta
+            # sessizce kayboluyordu.
+            fallback["admin_record"] = update_data.admin_record
         if update_data.daily_water_intake is not None:
             fallback["daily_water_intake"] = update_data.daily_water_intake
         await save_fallback_profile(fallback)

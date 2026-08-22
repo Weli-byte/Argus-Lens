@@ -5,11 +5,13 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useMemo,
 } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Camera,
   CameraOff,
+  Columns2,
+  SlidersHorizontal,
   ZoomIn,
   Eye,
   Info,
@@ -17,8 +19,10 @@ import {
   Move,
   Download,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import ParticleField from "@/components/ui/ParticleField";
+import CameraIdleStage from "@/components/vision/CameraIdleStage";
+import ConditionPicker, {
+  type PickerItem,
+} from "@/components/vision/ConditionPicker";
 import { useEyeFilter, type EyeCondition } from "@/hooks/useEyeFilter";
 
 // ---------------------------------------------------------------------------
@@ -235,13 +239,6 @@ const GROUPS: ConditionGroup[] = [
 const ZOOM_LEVELS = [1, 2, 4, 8, 10] as const;
 type ZoomLevel = (typeof ZOOM_LEVELS)[number];
 
-// 20 floating idle dots — deterministic positions (avoids SSR hydration mismatch)
-const IDLE_DOTS = Array.from({ length: 20 }, (_, i) => ({
-  left: `${(i * 37 + 11) % 100}%`,
-  top: `${(i * 53 + 23) % 100}%`,
-  duration: 2 + (i % 5) * 0.5,
-  delay: (i % 7) * 0.45,
-}));
 
 // Canvas logical dimensions (matches canvas width/height attributes)
 const CANVAS_W = 1280;
@@ -290,6 +287,7 @@ function Minimap({
   panX: number;
   panY: number;
 }) {
+  const t = useT();
   if (zoom <= 1) return null;
 
   const vpW = 80 / zoom;
@@ -304,7 +302,7 @@ function Minimap({
     <div
       className="absolute bottom-10 right-3 rounded border border-slate-600/60 bg-black/70 overflow-hidden"
       style={{ width: 80, height: 60 }}
-      title="Görüntü konumu"
+      title={t("Görüntü konumu")}
     >
       {/* Full-frame background */}
       <div className="absolute inset-0 border border-slate-700/40" />
@@ -329,8 +327,10 @@ function Minimap({
 // ---------------------------------------------------------------------------
 // Page component
 // ---------------------------------------------------------------------------
+import { useLocale, useT, pct } from "@/lib/i18n";
 
 export default function CameraPage() {
+  const { t, locale } = useLocale();
   const router   = useRouter();
   const videoRef  = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -342,15 +342,53 @@ export default function CameraPage() {
   const [dragStart,     setDragStart]     = useState({ x: 0, y: 0 });
   const [lastPanOffset, setLastPanOffset] = useState({ x: 0, y: 0 });
 
+  const cleanCanvasRef = useRef<HTMLCanvasElement>(null);
+  /* Şiddet 0..1 ve bölünmüş karşılaştırma ayırıcı konumu 0..1 (null = kapalı) */
+  const [severity, setSeverityState] = useState(0.6);
+  const [split, setSplit] = useState<number | null>(null);
+  const [shifting, setShifting] = useState(false);
+
   const [activeCondition, setActiveCondition] = useState<EyeCondition>("normal");
   const [activeZoom,      setActiveZoom]      = useState<ZoomLevel>(1);
   const [showPanHint,     setShowPanHint]     = useState(false);
   const hintShownRef = useRef(false);
 
-  const { fps, isStreaming, startCamera, stopCamera, setCondition, setZoom } =
-    useEyeFilter(videoRef, canvasRef, panOffsetRef);
+  const {
+    fps,
+    isStreaming,
+    startCamera,
+    stopCamera,
+    setCondition,
+    setZoom,
+    setSeverity,
+  } =
+    useEyeFilter(videoRef, canvasRef, panOffsetRef, cleanCanvasRef);
 
   const activeMeta = CONDITIONS.find((c) => c.id === activeCondition) ?? CONDITIONS[0];
+
+  const changeSeverity = useCallback(
+    (v: number) => {
+      setSeverityState(v);
+      setSeverity(v);
+    },
+    [setSeverity]
+  );
+
+  const pickerItems: PickerItem[] = useMemo(
+    () =>
+      GROUPS.flatMap((g) =>
+        g.ids
+          .map((id) => CONDITIONS.find((c) => c.id === id))
+          .filter(Boolean)
+          .map((c) => ({
+            id: (c as ConditionMeta).id,
+            name: t((c as ConditionMeta).name),
+            label: t((c as ConditionMeta).label),
+            group: t(g.label),
+          }))
+      ),
+    [t]
+  );
 
   // ── Reset pan when zoom returns to 1× ────────────────────────────────────
   useEffect(() => {
@@ -364,13 +402,26 @@ export default function CameraPage() {
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
+  /* Durum değişince kare ~400 ms odak kaydırır: eski filtre bulanıklaşır,
+     yenisi nete gelir. Anında zıplamak "alet ayarlanıyor" hissini bozuyordu.
+     Efekt yerine olay işleyicisinde tetiklenir — efekt gövdesinde senkron
+     setState zincirleme render uyarısı veriyordu. */
+  const shiftTimer = useRef<number | null>(null);
+  const triggerShift = useCallback(() => {
+    if (shiftTimer.current !== null) window.clearTimeout(shiftTimer.current);
+    setShifting(true);
+    shiftTimer.current = window.setTimeout(() => setShifting(false), 420);
+  }, []);
+
   const handleCondition = useCallback(
     (id: EyeCondition) => {
       setActiveCondition(id);
       setCondition(id);
+      triggerShift();
     },
-    [setCondition]
+    [setCondition, triggerShift]
   );
+
 
   const handleZoom = useCallback(
     (z: ZoomLevel) => {
@@ -489,14 +540,14 @@ export default function CameraPage() {
       >
         {/* Page header */}
         <div className="shrink-0">
-          <p className="text-[11px] text-slate-500 tracking-wide">
-            ArgusLens <span className="text-slate-700">/</span>{" "}
-            <span className="text-cyan-400 font-medium">Kamera</span>
+          <p className="t-dial">
+            ArgusLens <span className="text-[var(--ink-faint)]">/</span>{" "}
+            <span className="text-[var(--ink-title)]">{t("Kamera")}</span>
           </p>
-          <h1 className="text-3xl font-black text-white tracking-tight mt-1">
-            CANLI GÖRÜNTÜ
+          <h1 className="t-display-sm mt-1" style={{ fontSize: "var(--p-text-xl)" }}>
+            {t("CANLI")} <span className="t-counter">{t("görüntü")}</span>
           </h1>
-          <div className="w-14 h-0.5 bg-cyan-400 rounded-full mt-2" />
+          <div className="mt-2 h-px w-14 bg-[var(--accent-status)]" />
         </div>
 
         <div className="flex gap-4 flex-1 min-h-0 overflow-hidden">
@@ -506,10 +557,11 @@ export default function CameraPage() {
         <div className="flex flex-col flex-[7] min-w-0">
 
           {/* Canvas viewport */}
-          <div className="relative flex-1 rounded-[20px] border-2 border-[rgba(0,212,255,0.2)] bg-black overflow-hidden min-h-0">
+          <div className="vis-stage flex-1 min-h-0">
 
             <canvas
               ref={canvasRef}
+              data-shift={shifting ? "true" : undefined}
               width={CANVAS_W}
               height={CANVAS_H}
               className="w-full h-full object-contain"
@@ -523,94 +575,88 @@ export default function CameraPage() {
               onTouchEnd={handleTouchEnd}
             />
 
-            {/* Idle placeholder — particles + blinking eye + start button */}
-            {!isStreaming && (
-              <div className="absolute inset-0 bg-black flex flex-col items-center justify-center gap-8 overflow-hidden">
-                <ParticleField density={48} className="absolute inset-0 w-full h-full" />
-                {/* Floating dots */}
-                {IDLE_DOTS.map((d, i) => (
-                  <span
-                    key={i}
-                    className="absolute rounded-full"
-                    style={{
-                      left: d.left,
-                      top: d.top,
-                      width: 3,
-                      height: 3,
-                      background: "#00D4FF",
-                      opacity: 0,
-                      animation: `floatDot ${d.duration}s ease-in-out ${d.delay}s infinite`,
-                    }}
-                  />
-                ))}
-                {/* Idle scan line */}
-                <div
-                  className="absolute left-0 w-full"
-                  style={{
-                    height: 1,
-                    background:
-                      "linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent)",
-                    animation: "scanY 4s ease-in-out infinite",
-                  }}
+            {/* Bekleme: kapali vizor. Zemin video + fare/tekerlek paralaksi. */}
+            {!isStreaming && <CameraIdleStage onStart={startCamera} />}
+
+            {/* Bölünmüş karşılaştırma: SOL taraf sağlıklı göz.
+                Ayrı canvas kullanılıyor çünkü 6 durum canvas.style.filter
+                (CSS filtresi) uyguluyor ve o filtre canvas'in tamamını
+                etkiliyor — ana canvas içinde bölünseydi sağlıklı taraf da
+                bulanıklaşırdı. */}
+            {isStreaming && split !== null && activeCondition !== "normal" && (
+              <>
+                <canvas
+                  ref={cleanCanvasRef}
+                  width={CANVAS_W}
+                  height={CANVAS_H}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 h-full w-full object-contain"
+                  style={{ clipPath: `inset(0 ${(1 - split) * 100}% 0 0)` }}
                 />
-                <div className="absolute size-[420px] rounded-full border border-cyan-500/10" />
-                <div className="absolute size-[320px] rounded-full border border-cyan-500/15 animate-[ring-pulse_3.5s_ease-out_infinite]" />
-                <div className="absolute size-[320px] rounded-full border border-dashed border-cyan-500/15 animate-[spin_30s_linear_infinite]" />
-                <svg
-                  viewBox="0 0 120 80"
-                  className="relative w-44 animate-[blink_4s_ease-in-out_infinite] drop-shadow-[0_0_30px_rgba(0,212,255,0.3)]"
-                  style={{ transformOrigin: "60px 40px" }}
+                <div
+                  className="vis-split-handle"
+                  style={{ left: `${split * 100}%` }}
+                  role="slider"
+                  tabIndex={0}
+                  aria-label={t("Karşılaştırma ayırıcı")}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(split * 100)}
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowLeft")
+                      setSplit((v) => Math.max(0, (v ?? 0.5) - 0.04));
+                    if (e.key === "ArrowRight")
+                      setSplit((v) => Math.min(1, (v ?? 0.5) + 0.04));
+                  }}
+                  onPointerDown={(e) => {
+                    e.currentTarget.setPointerCapture(e.pointerId);
+                    const box = (
+                      e.currentTarget.parentElement as HTMLElement
+                    ).getBoundingClientRect();
+                    const move = (ev: PointerEvent) => {
+                      setSplit(
+                        Math.max(0, Math.min(1, (ev.clientX - box.left) / box.width))
+                      );
+                    };
+                    const up = () => {
+                      window.removeEventListener("pointermove", move);
+                      window.removeEventListener("pointerup", up);
+                    };
+                    window.addEventListener("pointermove", move);
+                    window.addEventListener("pointerup", up);
+                  }}
                 >
-                  <path
-                    d="M8 40 Q60 4 112 40 Q60 76 8 40 Z"
-                    fill="none"
-                    stroke="#00D4FF"
-                    strokeOpacity="0.5"
-                    strokeWidth="2"
-                  />
-                  <circle
-                    cx="60"
-                    cy="40"
-                    r="16"
-                    fill="rgba(0,212,255,0.08)"
-                    stroke="#00D4FF"
-                    strokeWidth="2"
-                  />
-                  <circle cx="60" cy="40" r="7" fill="#00D4FF" />
-                  <circle cx="63" cy="37" r="2" fill="#F8FAFC" opacity="0.85" />
-                </svg>
-                <button
-                  onClick={startCamera}
-                  className="relative flex items-center gap-2.5 h-12 px-10 rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 text-[#080B0F] text-sm font-bold tracking-wide transition-all duration-300 hover:shadow-[0_0_32px_rgba(0,212,255,0.5)] hover:scale-105 active:scale-95"
-                >
-                  <Camera className="size-4.5" />
-                  Kamerayı Başlat
-                </button>
-              </div>
+                  <span className="vis-split-grip" />
+                  <span className="vis-split-tag vis-split-tag-l">{t("SAĞLIKLI")}</span>
+                  <span className="vis-split-tag vis-split-tag-r">
+                    {t(activeMeta.name).toLocaleUpperCase(locale)}
+                  </span>
+                </div>
+              </>
             )}
 
             {isStreaming && (
               <>
                 {/* HUD corner brackets */}
                 <div className="pointer-events-none absolute inset-4">
-                  <span className="absolute left-0 top-0 size-10 border-l-2 border-t-2 border-cyan-400/50 rounded-tl-lg" />
-                  <span className="absolute right-0 top-0 size-10 border-r-2 border-t-2 border-cyan-400/50 rounded-tr-lg" />
-                  <span className="absolute left-0 bottom-0 size-10 border-l-2 border-b-2 border-cyan-400/50 rounded-bl-lg" />
-                  <span className="absolute right-0 bottom-0 size-10 border-r-2 border-b-2 border-cyan-400/50 rounded-br-lg" />
+                  <span className="absolute left-0 top-0 size-10 border-l border-t border-[var(--edge-live)]" />
+                  <span className="absolute right-0 top-0 size-10 border-r border-t border-[var(--edge-live)]" />
+                  <span className="absolute left-0 bottom-0 size-10 border-l border-b border-[var(--edge-live)]" />
+                  <span className="absolute right-0 bottom-0 size-10 border-r border-b border-[var(--edge-live)]" />
                 </div>
 
                 {/* CANLI + FPS + pan — top-left */}
                 <div className="absolute top-5 left-5 flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/70 border border-cyan-500/40 font-mono text-[11px] font-bold tracking-widest text-cyan-400 shadow-[0_0_12px_rgba(0,212,255,0.2)]">
-                    <span className="size-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--accent-status-edge)] bg-[color-mix(in_oklch,var(--p-graphite-990)_78%,transparent)] px-2.5 py-1 font-mono text-[var(--p-text-3xs)] tracking-widest" style={{ color: "var(--accent-status-soft)" }}>
+                    <span className="size-1.5 animate-pulse rounded-full bg-[var(--accent-status)]" />
                     CANLI
                   </span>
-                  <span className="px-2 py-0.5 rounded bg-black/60 font-mono text-[11px] text-cyan-400">
+                  <span className="rounded bg-[color-mix(in_oklch,var(--p-graphite-990)_70%,transparent)] px-2 py-0.5 font-mono text-[var(--p-text-3xs)] text-[var(--measure)]">
                     {fps} fps
                   </span>
                   {/* Pan position indicator */}
                   {activeZoom > 1 && hasPan && (
-                    <span className="px-2 py-0.5 rounded bg-black/60 font-mono text-[10px] text-cyan-400 flex items-center gap-1">
+                    <span className="flex items-center gap-1 rounded bg-[color-mix(in_oklch,var(--p-graphite-990)_70%,transparent)] px-2 py-0.5 font-mono text-[var(--p-text-3xs)] text-[var(--measure)]">
                       <Move className="size-2.5" />
                       X{panOffset.x > 0 ? "+" : ""}{Math.round(panOffset.x)}{" "}
                       Y{panOffset.y > 0 ? "+" : ""}{Math.round(panOffset.y)}
@@ -620,8 +666,8 @@ export default function CameraPage() {
 
                 {/* Active condition label */}
                 <div className="absolute bottom-20 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/70 border border-[rgba(0,212,255,0.2)] font-mono text-[11px] text-slate-200 whitespace-nowrap">
-                  {activeMeta.name}
-                  <span className="ml-2 text-slate-500">— {activeMeta.label}</span>
+                  {t(activeMeta.name)}
+                  <span className="ml-2 text-slate-500">— {t(activeMeta.label)}</span>
                 </div>
 
                 {/* Bottom control bar */}
@@ -631,21 +677,21 @@ export default function CameraPage() {
                     className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-500/15 border border-red-500/40 text-red-400 text-xs font-bold tracking-wide transition-all duration-300 hover:bg-red-500/25 hover:shadow-[0_0_16px_rgba(239,68,68,0.25)]"
                   >
                     <CameraOff className="size-4" />
-                    Durdur
+                    {t("Durdur")}
                   </button>
                   <button
                     onClick={handleScreenshot}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/40 text-cyan-400 text-xs font-bold tracking-wide transition-all duration-300 hover:bg-cyan-500/20 hover:shadow-[0_0_16px_rgba(0,212,255,0.25)]"
+                    className="btn btn-ghost"
                   >
                     <Download className="size-4" />
-                    Ekran Görüntüsü
+                    {t("Ekran Görüntüsü")}
                   </button>
                 </div>
               </>
             )}
 
             {/* Zoom badge — top-right */}
-            <div className="absolute top-5 right-5 px-2.5 py-1 rounded-full bg-black/70 border border-cyan-500/30 font-mono text-[11px] font-bold text-cyan-400 flex items-center gap-1">
+            <div className="absolute right-5 top-5 flex items-center gap-1 rounded border border-[var(--edge-live)] bg-[color-mix(in_oklch,var(--p-graphite-990)_78%,transparent)] px-2.5 py-1 font-mono text-[var(--p-text-3xs)] text-[var(--measure)]">
               <ZoomIn className="size-3" />
               {activeZoom}×
             </div>
@@ -656,7 +702,7 @@ export default function CameraPage() {
             {/* Pan hint tooltip */}
             {showPanHint && (
               <div className="absolute bottom-24 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-lg bg-[#00D4FF]/15 border border-[#00D4FF]/40 font-mono text-[11px] text-[#00D4FF] whitespace-nowrap animate-fade-in">
-                Görüntüyü keşfetmek için sürükleyin
+                {t("Görüntüyü keşfetmek için sürükleyin")}
               </div>
             )}
           </div>
@@ -668,120 +714,110 @@ export default function CameraPage() {
         <div className="flex-[3] flex flex-col gap-4 overflow-y-auto min-w-0">
 
           {/* ── Zoom ─────────────────────────────────────────────────────── */}
-          <div className="card-lift rounded-2xl border border-[rgba(0,212,255,0.12)] bg-gradient-to-br from-[#0D1117] to-[#111827] p-4 space-y-3 shrink-0">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-              <ZoomIn className="size-3.5 text-cyan-400" /> Yaklaştırma
+          <div className="vis-plate shrink-0">
+            <p className="vis-plate-head t-dial">
+              <ZoomIn className="size-3.5" /> {t("Yaklaştırma")}
             </p>
-            <div className="grid grid-cols-5 gap-2">
+            <div className="vis-zoom" role="group" aria-label={t("Yaklaştırma")}>
               {ZOOM_LEVELS.map((z) => (
                 <button
                   key={z}
                   onClick={() => handleZoom(z)}
-                  className={cn(
-                    "aspect-square rounded-lg text-xs font-mono transition-all duration-300 border",
-                    activeZoom === z
-                      ? "bg-cyan-500 text-black font-bold border-cyan-500 shadow-[0_0_12px_rgba(0,212,255,0.35)]"
-                      : "bg-transparent border-slate-700 text-slate-400 hover:border-cyan-500 hover:text-cyan-400"
-                  )}
+                  aria-pressed={activeZoom === z}
+                  className="vis-zoom-btn"
                 >
                   {z}×
                 </button>
               ))}
             </div>
             {activeZoom > 1 && (
-              <p className="text-[10px] font-mono text-slate-600 flex items-center gap-1">
-                <Move className="size-2.5 text-cyan-600" />
-                Görüntüyü taşımak için sürükleyin
+              <p className="t-dial mt-[var(--p-space-3)] flex items-center gap-1">
+                <Move className="size-2.5" />
+                {t("Görüntüyü taşımak için sürükleyin")}
               </p>
             )}
           </div>
 
+          {/* ── Şiddet kadranı + karşılaştırma ────────────────────────────── */}
+          <div className="vis-plate shrink-0">
+            <p className="vis-plate-head t-dial">
+              <SlidersHorizontal className="size-3.5" /> {t("Şiddet")}
+            </p>
+
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="t-dial">{t(activeMeta.name)}</span>
+              <span className="t-measure">{pct(Math.round(severity * 100), locale)}</span>
+            </div>
+
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={Math.round(severity * 100)}
+              onChange={(e) => changeSeverity(Number(e.target.value) / 100)}
+              disabled={activeCondition === "normal"}
+              className="vis-range mt-[var(--p-space-2)]"
+              aria-label={t("Durum şiddeti")}
+            />
+            <p className="mt-[var(--p-space-1)] flex justify-between">
+              <span className="t-dial">{t("Hafif")}</span>
+              <span className="t-dial">{t("Orta")}</span>
+              <span className="t-dial">{t("İleri")}</span>
+            </p>
+
+            <button
+              onClick={() => setSplit((v) => (v === null ? 0.5 : null))}
+              aria-pressed={split !== null}
+              disabled={!isStreaming || activeCondition === "normal"}
+              className="btn btn-ghost mt-[var(--p-space-3)] w-full disabled:opacity-40"
+            >
+              <Columns2 className="size-3.5" />
+              {t(
+                split !== null
+                  ? "Karşılaştırmayı kapat"
+                  : "Sağlıklı göz ile karşılaştır"
+              )}
+            </button>
+          </div>
+
           {/* ── Eye conditions (grouped) ──────────────────────────────────── */}
-          <div className="card-lift rounded-2xl border border-[rgba(0,212,255,0.12)] bg-gradient-to-br from-[#0D1117] to-[#111827] p-4 space-y-3">
-            <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                <Eye className="size-3.5 text-cyan-400" /> Göz Durumu
+          <div className="vis-plate">
+            <div className="mb-[var(--p-space-3)]">
+              <p className="vis-plate-head t-dial mb-[var(--p-space-1)]">
+                <Eye className="size-3.5" /> {t("Göz Durumu")}
               </p>
-              <p className="text-[10px] text-slate-600 mt-0.5">
-                Bir göz hastalığı seçin
+              <p className="text-[var(--p-text-3xs)] text-[var(--ink-faint)]">
+                {t("Bir göz hastalığı seçin")}
               </p>
             </div>
 
-            <div className="space-y-4 max-h-[52vh] overflow-y-auto pr-0.5">
-              {GROUPS.map((group, gi) => {
-                const groupConditions = group.ids
-                  .map((id) => CONDITIONS.find((c) => c.id === id))
-                  .filter(Boolean) as ConditionMeta[];
-
-                return (
-                  <div
-                    key={group.label}
-                    className={cn(
-                      gi > 0 && "border-t border-[rgba(255,255,255,0.06)] pt-3"
-                    )}
-                  >
-                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">
-                      {group.label}
-                    </p>
-
-                    <div className="space-y-1.5">
-                      {groupConditions.map((cond) => (
-                        <button
-                          key={cond.id}
-                          onClick={() => handleCondition(cond.id)}
-                          className={cn(
-                            "w-full text-left py-3 px-4 rounded-[10px] border transition-all duration-300",
-                            activeCondition === cond.id
-                              ? "border-cyan-500 bg-cyan-500/10 shadow-[0_0_10px_rgba(0,212,255,0.08)]"
-                              : "border-[rgba(255,255,255,0.06)] hover:border-slate-600 hover:bg-slate-800/50"
-                          )}
-                        >
-                          <div className="flex items-center justify-between">
-                            <p className={cn(
-                              "text-sm font-semibold",
-                              activeCondition === cond.id ? "text-cyan-400" : "text-slate-200"
-                            )}>
-                              {cond.name}
-                            </p>
-                            {activeCondition === cond.id && (
-                              <span className="size-1.5 rounded-full bg-cyan-400 shrink-0" />
-                            )}
-                          </div>
-                          <p className="text-xs text-slate-500 mt-0.5 leading-tight">
-                            {cond.label}
-                          </p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <ConditionPicker
+              items={pickerItems}
+              activeId={activeCondition}
+              onSelect={(id) => handleCondition(id as EyeCondition)}
+            />
           </div>
 
           {/* ── Info panel ──────────────────────────────────────────────── */}
-          <div className="rounded-r-xl border-l-2 border-cyan-500 bg-cyan-500/5 p-4 space-y-3 shrink-0">
-            <div className="flex items-center gap-1.5">
-              <Info className="size-3.5 text-cyan-400" />
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
-                Bilgi
+          <div className="vis-info shrink-0">
+            <p className="t-dial flex items-center gap-1.5">
+              <Info className="size-3.5" style={{ color: "var(--accent-status)" }} />
+              {t("Bilgi")}
+            </p>
+            <div className="grid gap-[var(--p-space-2)]">
+              <p
+                className="font-display text-[var(--p-text-md)] leading-tight text-[var(--ink-title)]"
+                style={{ fontWeight: "var(--p-weight-black)" }}
+              >
+                {t(activeMeta.name)}
               </p>
-            </div>
-            <div className="space-y-2">
-              <p className="text-sm text-cyan-400 font-bold">
-                {activeMeta.name}
+              <p className="text-[var(--p-text-xs)] leading-relaxed text-[var(--ink-body)]">
+                {t(activeMeta.description)}
               </p>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                {activeMeta.description}
+              <p className="grid gap-[var(--p-space-1)] border-t border-[var(--edge-hair)] pt-[var(--p-space-2)]">
+                <span className="t-dial">{t("Görülme oranı")}</span>
+                <span className="t-measure">{t(activeMeta.prevalence)}</span>
               </p>
-              <div className="flex items-start gap-1.5 pt-2 border-t border-[rgba(0,212,255,0.15)]">
-                <span className="text-[9px] text-slate-500 uppercase tracking-wider shrink-0 mt-0.5">
-                  Görülme Oranı
-                </span>
-                <span className="text-[11px] text-amber-400">
-                  {activeMeta.prevalence}
-                </span>
-              </div>
             </div>
 
             {/* AI'a sor button */}
@@ -793,10 +829,10 @@ export default function CameraPage() {
                   )}`
                 )
               }
-              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-cyan-500/20 bg-[#080B0F]/60 text-xs font-semibold text-slate-400 hover:border-cyan-500/50 hover:text-cyan-400 transition-all duration-300"
+              className="btn btn-ghost w-full"
             >
               <MessageSquare className="size-3.5" />
-              Bu hastalık hakkında AI&apos;a sor
+              {t("Bu hastalık hakkında AI'a sor")}
             </button>
           </div>
         </div>
