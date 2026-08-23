@@ -15,7 +15,11 @@ import json
 import logging
 from openai import AsyncOpenAI
 
-from security.jwt_handler import SecurityHandler
+# Token'lari `auth_manager` uretiyor (giris, kayit, OAuth, OTP rotalarinin
+# hepsi onu kullaniyor), dogrulama da ayni modulden gelmeli. Depoda ikinci
+# bir JWT katmani var (security.jwt_handler) ama AYRI bir gizli anahtar
+# kullaniyor; onunla dogrulamak gecerli token'lari da reddediyordu.
+from core.auth_manager import auth_manager
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 logger = logging.getLogger(__name__)
@@ -43,18 +47,23 @@ def require_user(
             detail="Kimlik dogrulamasi gerekli",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    try:
-        payload = SecurityHandler.verify_token(credentials)
-    except HTTPException:
-        raise
-    except Exception:
+    payload = auth_manager.verify_token(credentials.credentials)
+    if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Gecersiz veya suresi dolmus token",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    username = (payload or {}).get("sub")
+    # Yenileme token'i erisim icin kullanilamaz.
+    if payload.get("type") != "access":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Erisim token'i gerekli",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    username = payload.get("sub")
     if not username:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -110,8 +119,8 @@ class ProfileUpdate(BaseModel):
 class WaterUpdate(BaseModel):
     amount: int
 
-async def get_fallback_profile() -> dict:
-    profile_path = os.path.join(os.getcwd(), "chats", "profile.json")
+async def get_fallback_profile(username: str) -> dict:
+    profile_path = _fallback_path(username)
     os.makedirs(os.path.dirname(profile_path), exist_ok=True)
     
     if os.path.exists(profile_path):
@@ -175,24 +184,22 @@ async def get_fallback_profile() -> dict:
         
     return default_profile
 
-async def save_fallback_profile(data: dict):
-    profile_path = os.path.join(os.getcwd(), "chats", "profile.json")
+async def save_fallback_profile(username: str, data: dict):
+    profile_path = _fallback_path(username)
     with open(profile_path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 @router.get("")
-async def get_profile(db: AsyncSession = Depends(get_db)):
+async def get_profile(
+    db: AsyncSession = Depends(get_db),
+    username: str = Depends(require_user),
+):
     try:
-        result = await db.execute(select(HealthProfile))
-        profile = result.scalars().first()
-        
+        user, profile = await _profile_for(db, username)
+
         if not profile:
-            user_result = await db.execute(select(User))
-            user = user_result.scalars().first()
-            user_id = user.id if user else None
-            
             profile = HealthProfile(
-                user_id=user_id,
+                user_id=user.id,
                 age=28,
                 height=178.0,
                 weight=74.5,
@@ -212,19 +219,19 @@ async def get_profile(db: AsyncSession = Depends(get_db)):
         return profile
     except Exception as e:
         logger.warning(f"Database error in get_profile, falling back to JSON: {e}")
-        return await get_fallback_profile()
+        return await get_fallback_profile(username)
 
 @router.post("")
-async def update_profile(update_data: ProfileUpdate, db: AsyncSession = Depends(get_db)):
+async def update_profile(
+    update_data: ProfileUpdate,
+    db: AsyncSession = Depends(get_db),
+    username: str = Depends(require_user),
+):
     try:
-        result = await db.execute(select(HealthProfile))
-        profile = result.scalars().first()
-        
+        user, profile = await _profile_for(db, username)
+
         if not profile:
-            user_result = await db.execute(select(User))
-            user = user_result.scalars().first()
-            user_id = user.id if user else None
-            profile = HealthProfile(user_id=user_id)
+            profile = HealthProfile(user_id=user.id)
             db.add(profile)
             
         profile.age = update_data.age
@@ -247,7 +254,7 @@ async def update_profile(update_data: ProfileUpdate, db: AsyncSession = Depends(
         return profile
     except Exception as e:
         logger.warning(f"Database error in update_profile, falling back to JSON: {e}")
-        fallback = await get_fallback_profile()
+        fallback = await get_fallback_profile(username)
         fallback["age"] = update_data.age
         fallback["height"] = update_data.height
         fallback["weight"] = update_data.weight
@@ -264,14 +271,17 @@ async def update_profile(update_data: ProfileUpdate, db: AsyncSession = Depends(
             fallback["admin_record"] = update_data.admin_record
         if update_data.daily_water_intake is not None:
             fallback["daily_water_intake"] = update_data.daily_water_intake
-        await save_fallback_profile(fallback)
+        await save_fallback_profile(username, fallback)
         return fallback
 
 @router.post("/water")
-async def update_water(request: WaterUpdate, db: AsyncSession = Depends(get_db)):
+async def update_water(
+    request: WaterUpdate,
+    db: AsyncSession = Depends(get_db),
+    username: str = Depends(require_user),
+):
     try:
-        result = await db.execute(select(HealthProfile))
-        profile = result.scalars().first()
+        _user, profile = await _profile_for(db, username)
         if not profile:
             raise HTTPException(status_code=404, detail="Profile not found")
             
@@ -281,13 +291,16 @@ async def update_water(request: WaterUpdate, db: AsyncSession = Depends(get_db))
         return {"status": "success", "daily_water_intake": profile.daily_water_intake}
     except Exception as e:
         logger.warning(f"Database error in update_water, falling back to JSON: {e}")
-        fallback = await get_fallback_profile()
+        fallback = await get_fallback_profile(username)
         fallback["daily_water_intake"] = fallback.get("daily_water_intake", 0) + request.amount
-        await save_fallback_profile(fallback)
+        await save_fallback_profile(username, fallback)
         return {"status": "success", "daily_water_intake": fallback["daily_water_intake"]}
 
 @router.post("/generate-report")
-async def generate_clinic_report(db: AsyncSession = Depends(get_db)):
+async def generate_clinic_report(
+    db: AsyncSession = Depends(get_db),
+    username: str = Depends(require_user),
+):
     # Load profile details (either db or json fallback)
     age = 28
     gender = "Erkek"
@@ -302,8 +315,7 @@ async def generate_clinic_report(db: AsyncSession = Depends(get_db)):
     lab_results = []
 
     try:
-        result = await db.execute(select(HealthProfile))
-        profile = result.scalars().first()
+        _user, profile = await _profile_for(db, username)
         if profile:
             age = profile.age
             gender = profile.gender
@@ -317,7 +329,7 @@ async def generate_clinic_report(db: AsyncSession = Depends(get_db)):
             prescriptions = profile.prescriptions
             lab_results = profile.lab_results
         else:
-            fallback = await get_fallback_profile()
+            fallback = await get_fallback_profile(username)
             age = fallback["age"]
             gender = fallback["gender"]
             height = fallback["height"]
@@ -331,7 +343,7 @@ async def generate_clinic_report(db: AsyncSession = Depends(get_db)):
             lab_results = fallback["lab_results"]
     except Exception as e:
         logger.warning(f"Database error in generate_clinic_report, falling back to JSON: {e}")
-        fallback = await get_fallback_profile()
+        fallback = await get_fallback_profile(username)
         age = fallback["age"]
         gender = fallback["gender"]
         height = fallback["height"]
@@ -438,14 +450,37 @@ async def generate_clinic_report(db: AsyncSession = Depends(get_db)):
         return {"error": f"Rapor oluşturulamadı: {str(e)}"}
 
 @router.post("/upload-enabiz")
-async def upload_enabiz(file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
+async def upload_enabiz(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    username: str = Depends(require_user),
+):
     content_type = file.content_type or ""
     filename = file.filename or ""
     extracted_text = ""
     
     try:
-        file_bytes = await file.read()
-        
+        # Sinirli okuma: `await file.read()` dosyayi tumuyle bellege aliyordu,
+        # yani tek bir devasa yukleme sunucunun belleğini tuketebilirdi.
+        # Parca parca okuyup ust siniri asinca reddediyoruz.
+        chunks: list[bytes] = []
+        total = 0
+        while True:
+            chunk = await file.read(_UPLOAD_CHUNK)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > _MAX_UPLOAD_BYTES:
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail=(
+                        "Dosya çok büyük — en fazla "
+                        f"{_MAX_UPLOAD_BYTES // (1024 * 1024)} MB."
+                    ),
+                )
+            chunks.append(chunk)
+        file_bytes = b"".join(chunks)
+
         if filename.endswith(".pdf") or "pdf" in content_type:
             pdf_file = io.BytesIO(file_bytes)
             reader = pypdf.PdfReader(pdf_file)
@@ -456,9 +491,13 @@ async def upload_enabiz(file: UploadFile = File(...), db: AsyncSession = Depends
         else:
             extracted_text = file_bytes.decode("utf-8", errors="ignore")
             
+    except HTTPException:
+        # Boyut siniri gibi kasitli hatalar oldugu gibi gecmeli; asagidaki
+        # genel yakalayici bunlari 400'e cevirip anlamini bozuyordu.
+        raise
     except Exception as e:
         logger.error(f"Failed to read/parse uploaded E-Nabız file: {e}")
-        raise HTTPException(status_code=400, detail=f"Dosya okunamadı: {str(e)}")
+        raise HTTPException(status_code=400, detail="Dosya okunamadı veya biçimi desteklenmiyor.")
         
     if not extracted_text.strip():
         raise HTTPException(status_code=400, detail="Dosya içeriği boş veya okunabilir metin bulunamadı.")
@@ -510,8 +549,7 @@ async def upload_enabiz(file: UploadFile = File(...), db: AsyncSession = Depends
         lab_results = parsed_data.get("lab_results", [])
         
         try:
-            result = await db.execute(select(HealthProfile))
-            profile = result.scalars().first()
+            _user, profile = await _profile_for(db, username)
             if profile:
                 profile.visit_history = visit_history
                 profile.prescriptions = prescriptions
@@ -520,19 +558,19 @@ async def upload_enabiz(file: UploadFile = File(...), db: AsyncSession = Depends
                 await db.refresh(profile)
                 return profile
             else:
-                fallback = await get_fallback_profile()
+                fallback = await get_fallback_profile(username)
                 fallback["visit_history"] = visit_history
                 fallback["prescriptions"] = prescriptions
                 fallback["lab_results"] = lab_results
-                await save_fallback_profile(fallback)
+                await save_fallback_profile(username, fallback)
                 return fallback
         except Exception as db_err:
             logger.warning(f"Database error saving E-Nabız parsed records, falling back to JSON: {db_err}")
-            fallback = await get_fallback_profile()
+            fallback = await get_fallback_profile(username)
             fallback["visit_history"] = visit_history
             fallback["prescriptions"] = prescriptions
             fallback["lab_results"] = lab_results
-            await save_fallback_profile(fallback)
+            await save_fallback_profile(username, fallback)
             return fallback
             
     except json.JSONDecodeError as json_err:
